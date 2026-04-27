@@ -168,15 +168,15 @@ export class ReputationService {
     const repeatPosters = Array.from(posterCounts.values()).filter((c) => c > 1).length;
     const totalPosters = posterCounts.size;
 
-    const recentComments = records
-      .filter((r) => r.posterComment !== null)
-      .slice(0, 5)
-      .map((r) => ({
-        bountyId: r.bountyId,
-        rating: r.posterRating,
-        comment: r.posterComment!,
-        occurredAt: r.occurredAt.toISOString(),
-      }));
+    const withComments = records.filter(
+      (r): r is typeof r & { posterComment: string } => r.posterComment !== null,
+    );
+    const recentComments = withComments.slice(0, 5).map((r) => ({
+      bountyId: r.bountyId,
+      rating: r.posterRating,
+      comment: r.posterComment,
+      occurredAt: r.occurredAt.toISOString(),
+    }));
 
     return {
       ratingDistribution: ratingDist,
