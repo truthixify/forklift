@@ -8,11 +8,7 @@
     "pnpm": ">=9"
   },
   "scripts": {
-    "dev": "pnpm --filter @forklift/server dev && pnpm --filter @forklift/client dev",
-    "dev:api": "pnpm --filter @forklift/server dev:api",
-    "dev:broker": "pnpm --filter @forklift/server dev:broker",
-    "dev:worker": "pnpm --filter @forklift/server dev:worker",
-    "dev:resource": "pnpm --filter @forklift/server dev:resource",
+    "dev": "pnpm --filter @forklift/server dev",
     "dev:client": "pnpm --filter @forklift/client dev",
     "build": "pnpm --filter @forklift/server build && pnpm --filter @forklift/client build",
     "test": "pnpm --filter @forklift/server test",
