@@ -17,13 +17,13 @@ export class BlobStorageService {
   private readonly bucket: string;
 
   constructor(private readonly config: ConfigService) {
-    this.bucket = this.config.get<string>('S3_BUCKET') ?? 'forklift-deliveries';
+    this.bucket = this.config.get<string>('R2_BUCKET') ?? 'forklift-deliveries';
     this.s3 = new S3Client({
-      endpoint: this.config.get<string>('S3_ENDPOINT') ?? 'http://localhost:9000',
-      region: this.config.get<string>('S3_REGION') ?? 'us-east-1',
+      endpoint: this.config.get<string>('R2_ENDPOINT') ?? 'http://localhost:9000',
+      region: this.config.get<string>('R2_REGION') ?? 'auto',
       credentials: {
-        accessKeyId: this.config.get<string>('S3_ACCESS_KEY') ?? 'minioadmin',
-        secretAccessKey: this.config.get<string>('S3_SECRET_KEY') ?? 'minioadmin',
+        accessKeyId: this.config.get<string>('R2_ACCESS_KEY') ?? 'minioadmin',
+        secretAccessKey: this.config.get<string>('R2_SECRET_KEY') ?? 'minioadmin',
       },
       forcePathStyle: true,
     });

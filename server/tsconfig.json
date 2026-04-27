@@ -41,6 +41,8 @@
       "@forklift/reputation/*": ["libs/reputation/src/*"],
       "@forklift/notifications": ["libs/notifications/src"],
       "@forklift/notifications/*": ["libs/notifications/src/*"],
+      "@forklift/kite-identity": ["libs/kite-identity/src"],
+      "@forklift/kite-identity/*": ["libs/kite-identity/src/*"],
       "@forklift/shared-types": ["libs/shared-types/src"],
       "@forklift/shared-types/*": ["libs/shared-types/src/*"]
     }

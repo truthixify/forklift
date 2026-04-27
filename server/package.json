@@ -37,13 +37,15 @@
     "@prisma/client": "^6.0.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.1",
+    "ethers": "^6.16.0",
+    "gokite-aa-sdk": "^1.0.15",
     "openai": "^6.34.0",
+    "prisma": "^6.0.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
     "viem": "^2.21.0",
     "ws": "^8.18.0",
-    "zod": "^3.23.0",
-    "prisma": "^6.0.0"
+    "zod": "^3.23.0"
   },
   "devDependencies": {
     "@nestjs/cli": "^11.0.0",

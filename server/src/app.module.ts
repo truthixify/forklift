@@ -7,6 +7,7 @@ import { ChainModule } from '@forklift/chain';
 import { DatabaseModule } from '@forklift/database';
 import { EventsModule } from '@forklift/events';
 import { X402Module } from '@forklift/x402';
+import { KiteIdentityModule } from '@forklift/kite-identity';
 import { LLMModule } from '@forklift/llm';
 import { TemplatesModule } from '@forklift/templates';
 import { VerifiersModule } from '@forklift/verifiers';
@@ -31,6 +32,7 @@ import { NotificationsApiModule } from './notifications/notifications-api.module
     ChainModule,
     EventsModule,
     X402Module,
+    KiteIdentityModule,
     LLMModule,
     TemplatesModule,
     VerifiersModule,
