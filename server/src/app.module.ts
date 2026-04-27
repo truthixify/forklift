@@ -24,6 +24,7 @@ import { DeliveriesModule } from './deliveries/deliveries.module';
 import { SettlementModule } from './settlement/settlement.module';
 import { ProfilesModule } from './profiles/profiles.module';
 import { NotificationsApiModule } from './notifications/notifications-api.module';
+import { OperatorsModule } from './operators/operators.module';
 
 @Module({
   imports: [
@@ -49,6 +50,7 @@ import { NotificationsApiModule } from './notifications/notifications-api.module
     SettlementModule,
     ProfilesModule,
     NotificationsApiModule,
+    OperatorsModule,
   ],
 })
 export class AppModule {}
