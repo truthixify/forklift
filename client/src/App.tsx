@@ -26,7 +26,6 @@ import PosterBounties from "./pages/poster/PosterBounties";
 import PosterHistory from "./pages/poster/PosterHistory";
 import PosterPost from "./pages/poster/PosterPost";
 import PosterSettings from "./pages/poster/PosterSettings";
-import OperatorOnboarding from "./pages/OperatorOnboarding";
 import OperatorDashboard from "./pages/OperatorDashboard";
 import OperatorAgents from "./pages/operator/OperatorAgents";
 import OperatorAgentDetail from "./pages/operator/OperatorAgentDetail";
@@ -70,7 +69,6 @@ const App = () => (
                 <Route path="/dashboard/poster/notifications" element={<Navigate to="/dashboard/poster/activity" replace />} />
 
                 {/* Operator dashboard */}
-                <Route path="/onboarding/operator" element={<OperatorOnboarding />} />
                 <Route path="/dashboard/operator" element={<OperatorDashboard />} />
                 <Route path="/dashboard/operator/agents" element={<OperatorAgents />} />
                 <Route path="/dashboard/operator/agents/:id" element={<OperatorAgentDetail />} />
