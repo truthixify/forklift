@@ -7,9 +7,14 @@ import { ChainModule } from '@forklift/chain';
 import { DatabaseModule } from '@forklift/database';
 import { EventsModule } from '@forklift/events';
 import { X402Module } from '@forklift/x402';
+import { LLMModule } from '@forklift/llm';
+import { TemplatesModule } from '@forklift/templates';
 import { IndexerModule } from './indexer/indexer.module';
 import { WsGatewayModule } from './ws-gateway/ws-gateway.module';
 import { ResourcesModule } from './resources/resources.module';
+import { BountiesModule } from './bounties/bounties.module';
+import { BrokerModule } from './broker/broker.module';
+import { WorkerModule } from './worker/worker.module';
 
 @Module({
   imports: [
@@ -18,9 +23,14 @@ import { ResourcesModule } from './resources/resources.module';
     ChainModule,
     EventsModule,
     X402Module,
+    LLMModule,
+    TemplatesModule,
     IndexerModule,
     WsGatewayModule,
     ResourcesModule,
+    BountiesModule,
+    BrokerModule,
+    WorkerModule,
   ],
 })
 export class AppModule {}
