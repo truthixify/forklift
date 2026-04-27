@@ -72,3 +72,4 @@ server/libs/database/prisma/migrations/
 # Handoff artifacts
 ForkLift-handoff.zip
 design/
+forklift-capability-on-demand

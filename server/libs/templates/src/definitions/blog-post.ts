@@ -1,0 +1,3 @@
+// Copyright 2025 Forklift. Apache-2.0 license.
+import type { Template } from '../template.interface';
+export const blogPostTemplate: Template = { id: 'blog-post', name: 'Blog Post', category: 'Writing', shortDescription: 'Publish-ready blog post in markdown', defaultDeliverable: { version: '1.0', payload: { kind: 'json', schema: { type: 'object', required: ['title', 'content'] } } }, defaultVerifier: { type: 'llm-judge', config: { rubric: 'Well-written, engaging, on-topic, correct tone.', passThreshold: 0.6 } }, suggestedAmountRangeUSDT: ['3000000000000000000', '20000000000000000000'], suggestedDeadlineSec: 1200, parsingHints: 'Blog, article, post, write, content.', estimatedResourceCostUSDT: '250000000000000000' };

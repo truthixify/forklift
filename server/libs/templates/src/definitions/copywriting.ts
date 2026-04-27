@@ -1,0 +1,3 @@
+// Copyright 2025 Forklift. Apache-2.0 license.
+import type { Template } from '../template.interface';
+export const copywritingTemplate: Template = { id: 'copywriting', name: 'Copywriting', category: 'Writing', shortDescription: 'Marketing copy, taglines, ad text', defaultDeliverable: { version: '1.0', payload: { kind: 'json', schema: { type: 'object', required: ['copy'] } } }, defaultVerifier: { type: 'llm-judge', config: { rubric: 'Persuasive, on-brand, clear CTA, meets brief.', passThreshold: 0.6 } }, suggestedAmountRangeUSDT: ['2000000000000000000', '15000000000000000000'], suggestedDeadlineSec: 600, parsingHints: 'Copy, tagline, ad, marketing text, slogan.', estimatedResourceCostUSDT: '250000000000000000' };

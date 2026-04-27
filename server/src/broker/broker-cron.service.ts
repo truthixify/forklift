@@ -22,6 +22,7 @@ export class BrokerCronService {
   @Cron(CronExpression.EVERY_10_SECONDS)
   async tick() {
     await this.processClaimWindows();
+    await this.processDeliveryDeadlines();
     await this.processPosterSilence();
   }
 
@@ -84,6 +85,33 @@ export class BrokerCronService {
         this.logger.log(`Assigned bounty ${bountyId} to ${scored[0]?.agentAddress}`);
       } catch (error) {
         this.logger.error(`Failed to score/assign bounty ${bountyId}`, error);
+      }
+    }
+  }
+
+  private async processDeliveryDeadlines() {
+    const assignedBounties = await this.prisma.indexedEvent.findMany({
+      where: { eventName: 'BountyAssigned' },
+    });
+
+    for (const event of assignedBounties) {
+      const bountyId = event.bountyId;
+      if (!bountyId) continue;
+
+      const delivered = await this.prisma.indexedEvent.findFirst({
+        where: { bountyId, eventName: 'DeliverySubmitted' },
+      });
+      if (delivered) continue;
+
+      const settled = await this.prisma.indexedEvent.findFirst({
+        where: { bountyId, eventName: { in: ['BountyPaid', 'BountyRefunded'] } },
+      });
+      if (settled) continue;
+
+      const data = event.data as Record<string, unknown>;
+      const deadline = Number(data['deliveryDeadline'] ?? 0);
+      if (deadline > 0 && Date.now() / 1000 > deadline) {
+        this.logger.log(`Bounty ${bountyId} ghosted — delivery deadline passed`);
       }
     }
   }

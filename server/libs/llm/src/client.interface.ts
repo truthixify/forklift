@@ -35,3 +35,10 @@ export const DEFAULT_AI_PROVIDER: AIProviderConfig = {
   provider: 'gemini',
   model: 'gemini-2.5-flash',
 };
+
+export const SUPPORTED_PROVIDERS = {
+  gemini: { name: 'Google Gemini', models: ['gemini-2.5-flash', 'gemini-2.5-pro'] },
+  anthropic: { name: 'Anthropic Claude', models: ['claude-haiku-4-5', 'claude-sonnet-4-6'] },
+  openai: { name: 'OpenAI', models: ['gpt-4o-mini', 'gpt-4o'] },
+  openrouter: { name: 'OpenRouter', models: ['user-specified'] },
+} as const;

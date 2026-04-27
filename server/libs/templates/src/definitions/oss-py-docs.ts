@@ -1,0 +1,3 @@
+// Copyright 2025 Forklift. Apache-2.0 license.
+import type { Template } from '../template.interface';
+export const ossPyDocsTemplate: Template = { id: 'oss-py-docs', name: 'OSS Python Docs', category: 'Engineering', shortDescription: 'Write documentation for a Python OSS project', defaultDeliverable: { version: '1.0', payload: { kind: 'github-pr', repo: '', baseBranch: 'main' } }, defaultVerifier: { type: 'github-pr-merged', config: {} }, suggestedAmountRangeUSDT: ['5000000000000000000', '50000000000000000000'], suggestedDeadlineSec: 3600, parsingHints: 'Documentation, docs, Python, README, docstring.', estimatedResourceCostUSDT: '250000000000000000' };

@@ -10,7 +10,7 @@ describe('TemplateRegistry', () => {
   });
 
   it('has 3 registered templates', () => {
-    expect(registry.getAll()).toHaveLength(3);
+    expect(registry.getAll()).toHaveLength(15);
   });
 
   it('returns logo-design by id', () => {

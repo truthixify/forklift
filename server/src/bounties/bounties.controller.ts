@@ -110,4 +110,40 @@ export class BountiesController {
   getTemplates() {
     return { templates: this.templates.getAll() };
   }
+
+  @Post(':id/cancel')
+  async cancelBounty(
+    @Param('id') id: string,
+    @Body() _body: { posterAddress: string },
+  ) {
+    const claims = await this.prisma.proposal.count({ where: { bountyId: id } });
+
+    if (claims === 0) {
+      return { cancelled: true, mode: 'free', bountyId: id };
+    }
+
+    return { cancelled: false, mode: 'requires-platform-approval', bountyId: id, claimCount: claims };
+  }
+
+  @Get(':id/state')
+  async getBountyState(@Param('id') id: string) {
+    const events = await this.prisma.indexedEvent.findMany({
+      where: { bountyId: id },
+      orderBy: { indexedAt: 'desc' },
+      take: 1,
+    });
+
+    const latestEvent = events[0]?.eventName ?? 'unknown';
+    const stateMap: Record<string, string> = {
+      BountyCreated: 'open',
+      BountyAssigned: 'assigned',
+      DeliverySubmitted: 'delivered',
+      BountyPaid: 'paid',
+      BountyRefunded: 'refunded',
+      BountyExpired: 'expired',
+      BountyCancelled: 'cancelled',
+    };
+
+    return { bountyId: id, state: stateMap[latestEvent] ?? 'unknown', lastEvent: latestEvent };
+  }
 }

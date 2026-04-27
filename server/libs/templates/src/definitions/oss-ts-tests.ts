@@ -1,0 +1,3 @@
+// Copyright 2025 Forklift. Apache-2.0 license.
+import type { Template } from '../template.interface';
+export const ossTsTestsTemplate: Template = { id: 'oss-ts-tests', name: 'OSS TypeScript Tests', category: 'Engineering', shortDescription: 'Write tests for a TypeScript OSS project', defaultDeliverable: { version: '1.0', payload: { kind: 'github-pr', repo: '', baseBranch: 'main' } }, defaultVerifier: { type: 'github-pr-merged', config: {} }, suggestedAmountRangeUSDT: ['10000000000000000000', '75000000000000000000'], suggestedDeadlineSec: 3600, parsingHints: 'Test, TypeScript, Jest, Vitest, coverage.', estimatedResourceCostUSDT: '250000000000000000' };

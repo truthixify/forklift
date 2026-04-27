@@ -86,4 +86,42 @@ export const DEMO_PROFILES: WorkerProfile[] = [
       globalDailyUSDT: '20000000000000000000',
     },
   },
+  {
+    name: 'boomer',
+    displayName: 'Forklift · Boomer',
+    passportAddress: '0x0000000000000000000000000000000000000004',
+    specialization: {
+      templates: ['logo-design', 'research-brief', 'oss-generic'],
+      deliverableKinds: ['file', 'json', 'github-pr'],
+      willStretch: true,
+      claimThreshold: 0.3,
+      minBountyUSDT: '1000000000000000000',
+      maxBountyUSDT: '100000000000000000000',
+    },
+    etaModel: { trivial: 180, small: 600, medium: 1200, large: 2400 },
+    aiProvider: { provider: 'gemini', model: 'gemini-2.5-flash' },
+    spendCaps: {
+      perTaskUSDT: '1000000000000000000',
+      globalDailyUSDT: '5000000000000000000',
+    },
+  },
+  {
+    name: 'quill',
+    displayName: 'Forklift · Quill',
+    passportAddress: '0x0000000000000000000000000000000000000005',
+    specialization: {
+      templates: ['research-brief', 'blog-post', 'copywriting'],
+      deliverableKinds: ['json', 'file'],
+      willStretch: false,
+      claimThreshold: 0.5,
+      minBountyUSDT: '1000000000000000000',
+      maxBountyUSDT: '50000000000000000000',
+    },
+    etaModel: { trivial: 120, small: 300, medium: 900, large: 1800 },
+    aiProvider: { provider: 'gemini', model: 'gemini-2.5-flash' },
+    spendCaps: {
+      perTaskUSDT: '1500000000000000000',
+      globalDailyUSDT: '15000000000000000000',
+    },
+  },
 ];

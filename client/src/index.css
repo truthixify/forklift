@@ -1,1 +1,324 @@
-@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+  FORKLIFT DESIGN SYSTEM
+  Light-mode only. Squared corners only. Multi-color saturated state system.
+  All colors HSL.
+*/
+
+@layer base {
+  :root {
+    /* Brand palette — semantic */
+    --paper: 47 83% 97%;            /* #FFFCF2 */
+    --ink: 0 0% 4%;                 /* #0A0A0A */
+    --cobalt: 232 100% 58%;         /* #2B3FFF */
+    --cobalt-hover: 232 100% 50%;
+    --cobalt-press: 232 100% 42%;
+    --magenta: 326 100% 59%;        /* #FF2DA8 */
+    --hivis: 54 100% 50%;           /* #FFE600 */
+    --lime: 79 100% 62%;            /* #B8FF3D */
+    --alarm: 11 100% 58%;           /* #FF4F2C */
+    --muted-ink: 0 0% 42%;          /* #6B6B6B */
+    --hairline: 42 27% 88%;         /* #E8E4D8 */
+
+    /* shadcn token mapping (so primitives stay coherent) */
+    --background: var(--paper);
+    --foreground: var(--ink);
+    --card: var(--paper);
+    --card-foreground: var(--ink);
+    --popover: var(--paper);
+    --popover-foreground: var(--ink);
+    --primary: var(--ink);
+    --primary-foreground: var(--paper);
+    --secondary: var(--hairline);
+    --secondary-foreground: var(--ink);
+    --muted: var(--hairline);
+    --muted-foreground: var(--muted-ink);
+    --accent: var(--cobalt);
+    --accent-foreground: var(--paper);
+    --destructive: var(--alarm);
+    --destructive-foreground: var(--paper);
+    --border: var(--ink);
+    --input: var(--ink);
+    --ring: var(--cobalt);
+
+    --radius: 0px;
+
+    --sidebar-background: var(--paper);
+    --sidebar-foreground: var(--ink);
+    --sidebar-primary: var(--ink);
+    --sidebar-primary-foreground: var(--paper);
+    --sidebar-accent: var(--hairline);
+    --sidebar-accent-foreground: var(--ink);
+    --sidebar-border: var(--ink);
+    --sidebar-ring: var(--cobalt);
+  }
+
+  .dark {
+    /* No dark mode in scope — keep tokens identical so anything that flips class stays paper. */
+    --background: var(--paper);
+    --foreground: var(--ink);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+    border-radius: 0 !important;
+  }
+
+  /* Restore radius on actual circles via explicit class */
+  .is-circle, .is-circle * {
+    border-radius: 9999px !important;
+  }
+
+  html, body, #root {
+    background-color: hsl(var(--paper));
+    color: hsl(var(--ink));
+  }
+
+  body {
+    font-family: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+    font-feature-settings: "ss01", "ss02";
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection {
+    background: hsl(var(--cobalt));
+    color: hsl(var(--paper));
+  }
+}
+
+@layer components {
+  /* === Mono caps utilities === */
+  .mono {
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+  }
+  .mono-label {
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: hsl(var(--muted-ink));
+  }
+  .mono-label-ink {
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: hsl(var(--ink));
+  }
+  .mono-small {
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+  }
+  .mono-inline {
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 13px;
+    font-weight: 500;
+  }
+
+  /* === Hairline divider === */
+  .hairline {
+    background-color: hsl(var(--hairline));
+    height: 1px;
+    width: 100%;
+  }
+  .hairline-ink {
+    background-color: hsl(var(--ink));
+    height: 1px;
+    width: 100%;
+    opacity: 0.5;
+  }
+
+  /* === Display headlines === */
+  .display-hero {
+    font-weight: 500;
+    letter-spacing: -0.025em;
+    line-height: 0.95;
+  }
+
+  /* === Cobalt L-brackets framing === */
+  .brackets {
+    position: relative;
+    display: inline-block;
+    padding: 0.5rem 1rem;
+  }
+  .brackets::before, .brackets::after,
+  .brackets > .br-tl, .brackets > .br-br {
+    content: "";
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    border-color: hsl(var(--cobalt));
+    border-style: solid;
+    border-width: 0;
+  }
+  .brackets::before { top: 0; left: 0; border-top-width: 1.5px; border-left-width: 1.5px; }
+  .brackets::after  { bottom: 0; right: 0; border-bottom-width: 1.5px; border-right-width: 1.5px; }
+  .brackets > .br-tr { position: absolute; top: 0; right: 0; width: 14px; height: 14px; border-top: 1.5px solid hsl(var(--cobalt)); border-right: 1.5px solid hsl(var(--cobalt)); }
+  .brackets > .br-bl { position: absolute; bottom: 0; left: 0; width: 14px; height: 14px; border-bottom: 1.5px solid hsl(var(--cobalt)); border-left: 1.5px solid hsl(var(--cobalt)); }
+
+  /* === Pulse dot === */
+  .pulse-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 9999px;
+    display: inline-block;
+    animation: forklift-pulse 1.6s ease-in-out infinite;
+  }
+
+  /* === Hi-vis row stamp === */
+  .stamp-paid {
+    background: hsl(var(--hivis));
+    color: hsl(var(--ink));
+  }
+
+  /* === Manifest card outer === */
+  .manifest-outer {
+    border: 2px solid hsl(var(--ink));
+    background: hsl(var(--paper));
+    padding: 7px;
+    position: relative;
+  }
+  .manifest-inner {
+    border: 1px solid hsl(var(--ink));
+    background: hsl(var(--paper));
+    position: relative;
+  }
+
+  /* Offset hi-vis shadow block — pseudo-element */
+  .offset-shadow {
+    position: relative;
+  }
+  .offset-shadow::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translate(12px, 12px);
+    background: hsl(var(--hivis));
+    z-index: -1;
+  }
+  .offset-shadow-cobalt::before {
+    background: hsl(var(--cobalt));
+  }
+  .offset-shadow-magenta::before {
+    background: hsl(var(--magenta));
+  }
+  .offset-shadow-lime::before {
+    background: hsl(var(--lime));
+  }
+
+  /* === Marquee === */
+  .marquee {
+    display: flex;
+    overflow: hidden;
+    width: 100%;
+  }
+  .marquee-track {
+    display: flex;
+    gap: 3rem;
+    white-space: nowrap;
+    animation: marquee-scroll 40s linear infinite;
+  }
+
+  /* === Squared focus ring === */
+  *:focus-visible {
+    outline: 2px solid hsl(var(--cobalt));
+    outline-offset: 2px;
+  }
+
+  /* === Hairline sweep loader === */
+  .hairline-sweep {
+    position: relative;
+    height: 1px;
+    background: hsl(var(--hairline));
+    overflow: hidden;
+  }
+  .hairline-sweep::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    width: 30%;
+    background: hsl(var(--ink));
+    animation: sweep 1.4s linear infinite;
+  }
+
+  /* === Cargo-pallet faint background === */
+  .pallet-grid {
+    background-image:
+      linear-gradient(hsl(var(--cobalt) / 0.07) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(var(--cobalt) / 0.07) 1px, transparent 1px);
+    background-size: 48px 48px;
+  }
+
+  /* === Underline links === */
+  .ink-link {
+    color: hsl(var(--cobalt));
+    border-bottom: 1px solid hsl(var(--cobalt));
+    transition: border-width 120ms ease-out;
+  }
+  .ink-link:hover {
+    border-bottom-width: 2px;
+  }
+}
+
+@keyframes forklift-pulse {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+
+@keyframes marquee-scroll {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+
+@keyframes sweep {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(400%); }
+}
+
+@keyframes lift {
+  0%   { transform: translateY(0); }
+  50%  { transform: translateY(-2px); }
+  100% { transform: translateY(0); }
+}
+.animate-lift { animation: lift 320ms ease-out; }
+
+@keyframes hivis-sweep {
+  from { clip-path: inset(0 100% 0 0); }
+  to   { clip-path: inset(0 0 0 0); }
+}
+.animate-hivis-sweep { animation: hivis-sweep 600ms ease-out; }
+
+@keyframes status-flash {
+  0%, 100% { filter: none; }
+  50% { filter: invert(1); }
+}
+.animate-status-flash { animation: status-flash 400ms ease-out; }
+
+@keyframes count-up {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-count-up { animation: count-up 400ms ease-out; }
+
+@keyframes paper-fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.animate-paper-fade { animation: paper-fade 200ms ease-out; }
+
+@media (prefers-reduced-motion: reduce) {
+  .pulse-dot { animation: none; opacity: 1; }
+  .marquee-track { animation: none; }
+  .hairline-sweep::after { animation: none; }
+}

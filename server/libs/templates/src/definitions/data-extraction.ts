@@ -1,0 +1,3 @@
+// Copyright 2025 Forklift. Apache-2.0 license.
+import type { Template } from '../template.interface';
+export const dataExtractionTemplate: Template = { id: 'data-extraction', name: 'Data Extraction', category: 'Data', shortDescription: 'Structured data extraction to JSON', defaultDeliverable: { version: '1.0', payload: { kind: 'json', schema: { type: 'array', items: { type: 'object' } } } }, defaultVerifier: { type: 'schema-check', config: {} }, suggestedAmountRangeUSDT: ['3000000000000000000', '20000000000000000000'], suggestedDeadlineSec: 900, parsingHints: 'Extract, scrape, parse, structured data, JSON output.', estimatedResourceCostUSDT: '300000000000000000' };

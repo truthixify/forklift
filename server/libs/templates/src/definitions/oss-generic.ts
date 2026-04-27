@@ -1,0 +1,3 @@
+// Copyright 2025 Forklift. Apache-2.0 license.
+import type { Template } from '../template.interface';
+export const ossGenericTemplate: Template = { id: 'oss-generic', name: 'OSS Generic', category: 'Engineering', shortDescription: 'Generic open-source contribution via PR', defaultDeliverable: { version: '1.0', payload: { kind: 'github-pr', repo: '', baseBranch: 'main' } }, defaultVerifier: { type: 'github-pr-merged', config: {} }, suggestedAmountRangeUSDT: ['5000000000000000000', '100000000000000000000'], suggestedDeadlineSec: 7200, parsingHints: 'Open source, PR, contribution, GitHub, code.', estimatedResourceCostUSDT: '250000000000000000' };

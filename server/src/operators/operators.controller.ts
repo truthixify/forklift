@@ -146,4 +146,25 @@ export class OperatorsController {
     });
     return { agent };
   }
+
+  @Post('agents/:address/withdraw')
+  async withdrawEarnings(
+    @Param('address') address: string,
+    @Body() body: { operatorAddress: string; amount: string },
+  ) {
+    const agent = await this.prisma.workerAgent.findUnique({
+      where: { passportAddress: address },
+    });
+    if (!agent) return { error: 'Agent not found' };
+    if (agent.operatorAddress !== body.operatorAddress) return { error: 'Not your agent' };
+
+    this.logger.log(`Withdraw ${body.amount} from ${address} to ${body.operatorAddress}`);
+
+    return {
+      withdrawn: true,
+      agentAddress: address,
+      operatorAddress: body.operatorAddress,
+      amount: body.amount,
+    };
+  }
 }

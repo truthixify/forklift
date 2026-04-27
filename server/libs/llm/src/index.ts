@@ -9,7 +9,7 @@ export type {
   GenerateStructuredArgs,
   GenerateTextArgs,
 } from './client.interface';
-export { DEFAULT_AI_PROVIDER, PROVIDER_NAMES } from './client.interface';
+export { DEFAULT_AI_PROVIDER, PROVIDER_NAMES, SUPPORTED_PROVIDERS } from './client.interface';
 export { buildParseBriefPrompt } from './prompts/parse-brief.prompt';
 export { buildProposalJudgePrompt } from './prompts/proposal-judge.prompt';
 export { buildProposalGenPrompt } from './prompts/proposal-gen.prompt';

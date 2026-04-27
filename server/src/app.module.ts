@@ -5,6 +5,7 @@ import { ConfigModule } from '@nestjs/config';
 
 import { ChainModule } from '@forklift/chain';
 import { DatabaseModule } from '@forklift/database';
+import { AuthModule } from '@forklift/auth';
 import { EventsModule } from '@forklift/events';
 import { X402Module } from '@forklift/x402';
 import { KiteIdentityModule } from '@forklift/kite-identity';
@@ -25,11 +26,14 @@ import { SettlementModule } from './settlement/settlement.module';
 import { ProfilesModule } from './profiles/profiles.module';
 import { NotificationsApiModule } from './notifications/notifications-api.module';
 import { OperatorsModule } from './operators/operators.module';
+import { AuthApiModule } from './auth/auth-api.module';
+import { FeedModule } from './feed/feed.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     DatabaseModule,
+    AuthModule,
     ChainModule,
     EventsModule,
     X402Module,
@@ -51,6 +55,8 @@ import { OperatorsModule } from './operators/operators.module';
     ProfilesModule,
     NotificationsApiModule,
     OperatorsModule,
+    AuthApiModule,
+    FeedModule,
   ],
 })
 export class AppModule {}
