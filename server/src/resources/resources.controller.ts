@@ -1,6 +1,7 @@
 // Copyright 2025 Forklift. Apache-2.0 license.
 
 import { Controller, Get, Post, Req, Res, Logger } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
 import { randomUUID } from 'node:crypto';
 import type { Request, Response } from 'express';
@@ -10,6 +11,7 @@ import { SEEDED_LEADS } from './seed/leads';
 import { SEEDED_RESEARCH } from './seed/research';
 import type { PaymentProof } from '@forklift/x402';
 
+@ApiTags('resources')
 @Controller('resources')
 export class ResourcesController {
   private readonly logger = new Logger(ResourcesController.name);

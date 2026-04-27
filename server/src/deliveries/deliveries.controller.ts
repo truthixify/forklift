@@ -1,6 +1,7 @@
 // Copyright 2025 Forklift. Apache-2.0 license.
 
 import { Controller, Post, Get, Param, Body, Logger } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 
 import { DeliveryService } from '@forklift/delivery';
 import { VerifierRegistry } from '@forklift/verifiers';
@@ -8,6 +9,7 @@ import { PrismaService } from '@forklift/database';
 import { hashData } from '@forklift/chain';
 import type { Prisma } from '@prisma/client';
 
+@ApiTags('deliveries')
 @Controller('deliveries')
 export class DeliveriesController {
   private readonly logger = new Logger(DeliveriesController.name);

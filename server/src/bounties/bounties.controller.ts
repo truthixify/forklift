@@ -1,6 +1,7 @@
 // Copyright 2025 Forklift. Apache-2.0 license.
 
 import { Controller, Post, Get, Body, Param, Query, Logger } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import { IsString, IsOptional, MinLength } from 'class-validator';
 import type { Prisma } from '@prisma/client';
 
@@ -19,6 +20,7 @@ class CreateDraftDto {
   templateHint?: string;
 }
 
+@ApiTags('bounties')
 @Controller('bounties')
 export class BountiesController {
   private readonly logger = new Logger(BountiesController.name);

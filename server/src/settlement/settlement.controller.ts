@@ -1,11 +1,13 @@
 // Copyright 2025 Forklift. Apache-2.0 license.
 
 import { Controller, Post, Param, Body, Logger } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 
 import { PrismaService } from '@forklift/database';
 import { hashData } from '@forklift/chain';
 import { SettlementService } from './settlement.service';
 
+@ApiTags('settlement')
 @Controller('bounties')
 export class SettlementController {
   private readonly logger = new Logger(SettlementController.name);

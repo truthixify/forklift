@@ -1,10 +1,12 @@
 // Copyright 2025 Forklift. Apache-2.0 license.
 
 import { Controller, Get, Param, Query } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 
 import { PrismaService } from '@forklift/database';
 import { ReputationService } from '@forklift/reputation';
 
+@ApiTags('agents', 'posters', 'operators')
 @Controller()
 export class ProfilesController {
 

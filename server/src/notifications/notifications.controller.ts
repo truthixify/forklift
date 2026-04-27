@@ -1,10 +1,12 @@
 // Copyright 2025 Forklift. Apache-2.0 license.
 
 import { Controller, Get, Post, Patch, Param, Query, Body } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 
 import { NotificationService } from '@forklift/notifications';
 import { PrismaService } from '@forklift/database';
 
+@ApiTags('notifications')
 @Controller('notifications')
 export class NotificationsApiController {
   constructor(
