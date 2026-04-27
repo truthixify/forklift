@@ -4,10 +4,10 @@
   "private": true,
   "license": "Apache-2.0",
   "engines": {
-    "node": ">=20"
+    "node": "22.x"
   },
   "scripts": {
-    "build": "nest build && prisma generate --schema=libs/database/prisma/schema.prisma",
+    "build": "tsc -p tsconfig.json && prisma generate --schema=libs/database/prisma/schema.prisma",
     "dev": "nest start --watch",
     "start": "node dist/src/main",
     "start:prod": "node dist/src/main",
