@@ -1,0 +1,287 @@
+// Copyright 2025 Forklift. Apache-2.0 license.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ──────────────────────────────────────────────
+//  Auth & ownership
+// ──────────────────────────────────────────────
+
+model User {
+  passportAddress String   @id @map("passport_address") @db.Char(42)
+  displayName     String?  @map("display_name") @db.VarChar(64)
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  agents                WorkerAgent[]
+  operatorAggregate     OperatorAggregate?
+  sessions              Session[]
+  notifications         Notification[]
+  notificationPreference NotificationPreference?
+
+  @@map("users")
+}
+
+model WorkerAgent {
+  passportAddress  String   @id @map("passport_address") @db.Char(42)
+  operatorAddress  String   @map("operator_address") @db.Char(42)
+  name             String   @db.VarChar(64)
+  displayName      String   @map("display_name") @db.VarChar(128)
+  profileConfig    Json     @map("profile_config")
+  aiProviderConfig Json     @map("ai_provider_config")
+  status           String   @default("active") @db.VarChar(16)
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  operator User @relation(fields: [operatorAddress], references: [passportAddress])
+
+  @@index([operatorAddress])
+  @@map("worker_agents")
+}
+
+model Session {
+  id          String    @id @default(uuid()) @db.Uuid
+  userAddress String    @map("user_address") @db.Char(42)
+  deviceLabel String?   @map("device_label") @db.VarChar(64)
+  issuedAt    DateTime  @default(now()) @map("issued_at")
+  expiresAt   DateTime  @map("expires_at")
+  revokedAt   DateTime? @map("revoked_at")
+
+  user User @relation(fields: [userAddress], references: [passportAddress])
+
+  @@index([userAddress])
+  @@map("sessions")
+}
+
+// ──────────────────────────────────────────────
+//  Off-chain blobs (hash committed on-chain)
+// ──────────────────────────────────────────────
+
+model BountySignature {
+  hash             String   @id @db.Char(66)
+  bountyId         String   @map("bounty_id") @db.Char(66)
+  title            String
+  description      String
+  brief            String
+  deliverableSchema Json    @map("deliverable_schema")
+  verifierConfig   Json     @map("verifier_config")
+  templateId       String?  @map("template_id") @db.VarChar(64)
+  parsedByProvider String?  @map("parsed_by_provider") @db.VarChar(32)
+  parsedByModel    String?  @map("parsed_by_model") @db.VarChar(64)
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  @@map("bounty_signatures")
+}
+
+model Proposal {
+  hash               String   @id @db.Char(66)
+  bountyId           String   @map("bounty_id") @db.Char(66)
+  agentAddress       String   @map("agent_address") @db.Char(42)
+  proposalText       String   @map("proposal_text")
+  assertedDimensions Int[]    @map("asserted_dimensions") @db.SmallInt
+  etaMinutes         Int?     @map("eta_minutes")
+  generatedByProvider String? @map("generated_by_provider") @db.VarChar(32)
+  generatedByModel   String?  @map("generated_by_model") @db.VarChar(64)
+  submittedAt        DateTime @default(now()) @map("submitted_at")
+
+  @@map("proposals")
+}
+
+model ScoringTrace {
+  hash     String   @id @db.Char(66)
+  bountyId String   @map("bounty_id") @db.Char(66)
+  traceJson Json    @map("trace_json")
+  scoredAt DateTime @default(now()) @map("scored_at")
+
+  @@map("scoring_traces")
+}
+
+model Delivery {
+  hash          String   @id @db.Char(66)
+  bountyId      String   @map("bounty_id") @db.Char(66)
+  agentAddress  String   @map("agent_address") @db.Char(42)
+  payloadKind   String   @map("payload_kind") @db.VarChar(16)
+  payload       Json
+  attemptNumber Int      @default(1) @map("attempt_number") @db.SmallInt
+  submittedAt   DateTime @default(now()) @map("submitted_at")
+
+  @@index([bountyId, submittedAt])
+  @@map("deliveries")
+}
+
+model VerifierResult {
+  hash           String   @id @db.Char(66)
+  bountyId       String   @map("bounty_id") @db.Char(66)
+  agentAddress   String   @map("agent_address") @db.Char(42)
+  deliveryHash   String   @map("delivery_hash") @db.Char(66)
+  verifierType   String   @map("verifier_type") @db.VarChar(32)
+  passed         Boolean
+  score          Decimal? @db.Decimal(5, 4)
+  reasoning      String
+  evidence       Json
+  brokerProvider String?  @map("broker_provider") @db.VarChar(32)
+  brokerModel    String?  @map("broker_model") @db.VarChar(64)
+  recordedAt     DateTime @default(now()) @map("recorded_at")
+
+  @@map("verifier_results")
+}
+
+model Dispute {
+  bountyId             String    @id @map("bounty_id") @db.Char(66)
+  posterAddress        String    @map("poster_address") @db.Char(42)
+  reason               String
+  reasonHash           String    @map("reason_hash") @db.Char(66)
+  openedAt             DateTime  @default(now()) @map("opened_at")
+  resolvedAt           DateTime? @map("resolved_at")
+  platformDecision     String?   @map("platform_decision") @db.VarChar(16)
+  platformReasoning    String?   @map("platform_reasoning")
+  platformDecisionHash String?   @map("platform_decision_hash") @db.Char(66)
+
+  @@map("disputes")
+}
+
+// ──────────────────────────────────────────────
+//  Reputation per-bounty records
+// ──────────────────────────────────────────────
+
+model BountyRecord {
+  bountyId         String   @map("bounty_id") @db.Char(66)
+  side             String   @db.VarChar(8)
+  party            String   @db.Char(42)
+  templateId       String?  @map("template_id") @db.VarChar(64)
+  deliverableKind  String   @map("deliverable_kind") @db.VarChar(16)
+  verifierType     String   @map("verifier_type") @db.VarChar(32)
+  outcome          String   @db.VarChar(24)
+  brokerDecision   String?  @map("broker_decision") @db.VarChar(8)
+  posterDecision   String?  @map("poster_decision") @db.VarChar(16)
+  platformDecision String?  @map("platform_decision") @db.VarChar(8)
+  amountUsdt       Decimal  @map("amount_usdt") @db.Decimal(78, 0)
+  feesUsdt         Decimal  @map("fees_usdt") @db.Decimal(78, 0)
+  netUsdt          Decimal  @map("net_usdt") @db.Decimal(78, 0)
+  posterRating     Int?     @map("poster_rating") @db.SmallInt
+  posterComment    String?  @map("poster_comment")
+  timeToDeliverSec Int?     @map("time_to_deliver_sec")
+  timeToReviewSec  Int?     @map("time_to_review_sec")
+  revisionCount    Int      @default(0) @map("revision_count") @db.SmallInt
+  occurredAt       DateTime @map("occurred_at")
+
+  @@id([bountyId, side, party])
+  @@index([party, occurredAt(sort: Desc)])
+  @@index([templateId])
+  @@index([outcome])
+  @@map("bounty_records")
+}
+
+// ──────────────────────────────────────────────
+//  Operator accountability
+// ──────────────────────────────────────────────
+
+model OperatorAggregate {
+  operatorAddress          String   @id @map("operator_address") @db.Char(42)
+  agentsDeployed           Int      @default(0) @map("agents_deployed")
+  agentsActive             Int      @default(0) @map("agents_active")
+  agentsRetired            Int      @default(0) @map("agents_retired")
+  totalPaid                Int      @default(0) @map("total_paid")
+  totalGhosted             Int      @default(0) @map("total_ghosted")
+  totalDisputesLost        Int      @default(0) @map("total_disputes_lost")
+  aggregateGhostRate       Decimal  @default(0) @map("aggregate_ghost_rate") @db.Decimal(5, 4)
+  aggregateDisputeLossRate Decimal  @default(0) @map("aggregate_dispute_loss_rate") @db.Decimal(5, 4)
+  totalEarnedUsdt          Decimal  @default(0) @map("total_earned_usdt") @db.Decimal(78, 0)
+  warningActive            Boolean  @default(false) @map("warning_active")
+  computedAt               DateTime @default(now()) @map("computed_at")
+
+  operator User @relation(fields: [operatorAddress], references: [passportAddress])
+
+  @@map("operator_aggregates")
+}
+
+// ──────────────────────────────────────────────
+//  Work runtime
+// ──────────────────────────────────────────────
+
+model WorkRun {
+  id           Int       @id @default(autoincrement())
+  agentAddress String    @map("agent_address") @db.Char(42)
+  bountyId     String    @map("bounty_id") @db.Char(66)
+  startedAt    DateTime  @map("started_at")
+  finishedAt   DateTime? @map("finished_at")
+  status       String?   @db.VarChar(16)
+  log          Json?
+
+  @@map("work_runs")
+}
+
+// ──────────────────────────────────────────────
+//  x402 payment ledger
+// ──────────────────────────────────────────────
+
+model X402Payment {
+  id           Int      @id @default(autoincrement())
+  agentAddress String   @map("agent_address") @db.Char(42)
+  bountyId     String   @map("bounty_id") @db.Char(66)
+  resourceUrl  String   @map("resource_url")
+  amountUsdt   Decimal  @map("amount_usdt") @db.Decimal(78, 0)
+  txHash       String?  @map("tx_hash") @db.Char(66)
+  paidAt       DateTime @default(now()) @map("paid_at")
+
+  @@index([agentAddress, paidAt(sort: Desc)])
+  @@index([bountyId])
+  @@map("x402_payments")
+}
+
+// ──────────────────────────────────────────────
+//  Notifications
+// ──────────────────────────────────────────────
+
+model Notification {
+  id          Int       @id @default(autoincrement())
+  userAddress String    @map("user_address") @db.Char(42)
+  category    String    @db.VarChar(64)
+  title       String
+  body        String
+  payload     Json
+  ctaLabel    String?   @map("cta_label")
+  ctaHref     String?   @map("cta_href")
+  unread      Boolean   @default(true)
+  createdAt   DateTime  @default(now()) @map("created_at")
+  readAt      DateTime? @map("read_at")
+
+  user User @relation(fields: [userAddress], references: [passportAddress])
+
+  @@index([userAddress, createdAt(sort: Desc)])
+  @@map("notifications")
+}
+
+model NotificationPreference {
+  userAddress  String  @id @map("user_address") @db.Char(42)
+  inAppEnabled Boolean @default(true) @map("in_app_enabled")
+
+  user User @relation(fields: [userAddress], references: [passportAddress])
+
+  @@map("notification_preferences")
+}
+
+// ──────────────────────────────────────────────
+//  Indexer cache (chain events → Postgres)
+// ──────────────────────────────────────────────
+
+model IndexedEvent {
+  id              Int      @id @default(autoincrement())
+  eventName       String   @map("event_name") @db.VarChar(64)
+  bountyId        String?  @map("bounty_id") @db.Char(66)
+  address         String?  @db.Char(42)
+  blockNumber     BigInt   @map("block_number")
+  transactionHash String   @map("transaction_hash") @db.Char(66)
+  logIndex        Int      @map("log_index")
+  data            Json
+  indexedAt       DateTime @default(now()) @map("indexed_at")
+
+  @@unique([transactionHash, logIndex])
+  @@index([eventName, bountyId])
+  @@index([bountyId])
+  @@map("indexed_events")
+}
