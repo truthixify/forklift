@@ -189,12 +189,7 @@ export function TopNav() {
           )}
 
           {showCobaltCTA && (
-            <button
-              onClick={() => requireAuth("poster", () => nav("/dashboard/poster/post"))}
-              className="hidden md:inline-block"
-            >
-              <FlButton variant="cobalt">Post a bounty</FlButton>
-            </button>
+            <FlButton variant="cobalt" onClick={() => requireAuth("poster", () => nav("/dashboard/poster/post"))} className="hidden md:inline-block">Post a bounty</FlButton>
           )}
 
           {/* Mobile toggle */}
@@ -282,38 +277,14 @@ export function TopNav() {
               )}
               <div className="pt-4 border-t border-ink space-y-3">
                 {!connected ? (
-                  <button
-                    onClick={() => {
-                      requireAuth("poster");
-                      setMobileOpen(false);
-                    }}
-                    className="block w-full"
-                  >
-                    <FlButton variant="secondary" className="w-full">
-                      Sign in with wallet
-                    </FlButton>
-                  </button>
+                  <FlButton variant="secondary" className="w-full" onClick={() => { requireAuth("poster"); setMobileOpen(false); }}>Sign in with wallet</FlButton>
                 ) : (
                   <Link to="/dashboard/poster" onClick={() => setMobileOpen(false)} className="block">
                     <FlButton variant="secondary" className="w-full">Go to dashboard</FlButton>
                   </Link>
                 )}
-                <button
-                  onClick={() => handleAuthLink("/dashboard/poster/post", "poster")}
-                  className="block w-full"
-                >
-                  <FlButton variant="cobalt" className="w-full">
-                    Post a bounty
-                  </FlButton>
-                </button>
-                <button
-                  onClick={() => handleAuthLink("/dashboard/operator/deploy", "operator")}
-                  className="block w-full"
-                >
-                  <FlButton variant="secondary" className="w-full">
-                    Deploy an agent
-                  </FlButton>
-                </button>
+                <FlButton variant="cobalt" className="w-full" onClick={() => handleAuthLink("/dashboard/poster/post", "poster")}>Post a bounty</FlButton>
+                <FlButton variant="secondary" className="w-full" onClick={() => handleAuthLink("/dashboard/operator/deploy", "operator")}>Deploy an agent</FlButton>
               </div>
             </div>
           </div>

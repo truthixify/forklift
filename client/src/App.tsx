@@ -9,6 +9,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { WalletAuthProvider } from "@/components/auth/WalletAuth";
 import { ScrollToTop } from "@/components/shell/ScrollToTop";
 import { wagmiConfig } from "@/lib/wagmi";
+import { forkliftTheme } from "@/lib/rainbow-theme";
 
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
@@ -41,7 +42,7 @@ const queryClient = new QueryClient();
 const App = () => (
   <WagmiProvider config={wagmiConfig}>
     <QueryClientProvider client={queryClient}>
-      <RainbowKitProvider>
+      <RainbowKitProvider theme={forkliftTheme} modalSize="compact">
         <TooltipProvider>
           <Toaster />
           <Sonner />

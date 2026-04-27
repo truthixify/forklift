@@ -1,5 +1,6 @@
 import { getDefaultConfig } from '@rainbow-me/rainbowkit';
 import { defineChain } from 'viem';
+import { http } from 'wagmi';
 
 export const kiteTestnet = defineChain({
   id: 2368,
@@ -12,7 +13,10 @@ export const kiteTestnet = defineChain({
 
 export const wagmiConfig = getDefaultConfig({
   appName: 'Forklift',
-  projectId: import.meta.env.VITE_WC_PROJECT_ID ?? 'forklift-hackathon',
+  projectId: import.meta.env.VITE_WC_PROJECT_ID ?? '0x_placeholder',
   chains: [kiteTestnet],
+  transports: {
+    [kiteTestnet.id]: http('https://rpc-testnet.gokite.ai/'),
+  },
   ssr: false,
 });
