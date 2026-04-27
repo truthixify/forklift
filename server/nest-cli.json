@@ -1,0 +1,85 @@
+{
+  "$schema": "https://json.schemastore.org/nest-cli",
+  "collection": "@nestjs/schematics",
+  "sourceRoot": "apps/api/src",
+  "compilerOptions": {
+    "webpack": false,
+    "tsConfigPath": "tsconfig.json"
+  },
+  "monorepo": true,
+  "root": "apps/api",
+  "projects": {
+    "api": {
+      "type": "application",
+      "root": "apps/api",
+      "entryFile": "main",
+      "sourceRoot": "apps/api/src",
+      "compilerOptions": {
+        "tsConfigPath": "tsconfig.json"
+      }
+    },
+    "broker-agent": {
+      "type": "application",
+      "root": "apps/broker-agent",
+      "entryFile": "main",
+      "sourceRoot": "apps/broker-agent/src",
+      "compilerOptions": {
+        "tsConfigPath": "tsconfig.json"
+      }
+    },
+    "worker-agent": {
+      "type": "application",
+      "root": "apps/worker-agent",
+      "entryFile": "main",
+      "sourceRoot": "apps/worker-agent/src",
+      "compilerOptions": {
+        "tsConfigPath": "tsconfig.json"
+      }
+    },
+    "resource-server": {
+      "type": "application",
+      "root": "apps/resource-server",
+      "entryFile": "main",
+      "sourceRoot": "apps/resource-server/src",
+      "compilerOptions": {
+        "tsConfigPath": "tsconfig.json"
+      }
+    },
+    "chain": {
+      "type": "library",
+      "root": "libs/chain",
+      "entryFile": "index",
+      "sourceRoot": "libs/chain/src",
+      "compilerOptions": {
+        "tsConfigPath": "tsconfig.json"
+      }
+    },
+    "database": {
+      "type": "library",
+      "root": "libs/database",
+      "entryFile": "index",
+      "sourceRoot": "libs/database/src",
+      "compilerOptions": {
+        "tsConfigPath": "tsconfig.json"
+      }
+    },
+    "events": {
+      "type": "library",
+      "root": "libs/events",
+      "entryFile": "index",
+      "sourceRoot": "libs/events/src",
+      "compilerOptions": {
+        "tsConfigPath": "tsconfig.json"
+      }
+    },
+    "shared-types": {
+      "type": "library",
+      "root": "libs/shared-types",
+      "entryFile": "index",
+      "sourceRoot": "libs/shared-types/src",
+      "compilerOptions": {
+        "tsConfigPath": "tsconfig.json"
+      }
+    }
+  }
+}
