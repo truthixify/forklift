@@ -25,7 +25,7 @@ export class X402Client {
   private readonly logger = new Logger(X402Client.name);
 
   constructor(
-    private readonly config: ConfigService,
+    _config: ConfigService,
     private readonly prisma: PrismaService,
   ) {}
 
@@ -57,7 +57,7 @@ export class X402Client {
         agentAddress,
         bountyId,
         resourceUrl: url,
-        amountUsdt: BigInt(requirements.amountUSDT),
+        amountUsdt: requirements.amountUSDT,
         txHash: paymentProof.txHash,
       },
     });

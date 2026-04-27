@@ -67,7 +67,7 @@ export class ScoringService {
   ) {}
 
   async scoreClaims(
-    bountyId: string,
+    _bountyId: string,
     bountyTitle: string,
     bountyDescription: string,
     templateId: string | null,

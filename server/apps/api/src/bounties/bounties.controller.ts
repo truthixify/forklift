@@ -2,6 +2,7 @@
 
 import { Controller, Post, Get, Body, Param, Query, Logger } from '@nestjs/common';
 import { IsString, IsOptional, MinLength } from 'class-validator';
+import type { Prisma } from '@prisma/client';
 
 import { PrismaService } from '@forklift/database';
 import { hashData } from '@forklift/chain';
@@ -59,8 +60,8 @@ export class BountiesController {
         title: body.title,
         description: body.description,
         brief: body.brief,
-        deliverableSchema: body.deliverableSchema,
-        verifierConfig: body.verifierConfig,
+        deliverableSchema: body.deliverableSchema as Prisma.InputJsonValue,
+        verifierConfig: body.verifierConfig as Prisma.InputJsonValue,
         templateId: body.templateId,
         parsedByProvider: body.parsedByProvider,
         parsedByModel: body.parsedByModel,
@@ -73,7 +74,7 @@ export class BountiesController {
 
   @Get()
   async listBounties(
-    @Query('status') status?: string,
+    @Query('status') _status?: string,
     @Query('template') template?: string,
     @Query('limit') limit?: string,
   ) {

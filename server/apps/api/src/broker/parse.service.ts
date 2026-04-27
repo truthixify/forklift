@@ -48,8 +48,8 @@ export class ParseService {
       return {
         title: draft.title,
         description: draft.description,
-        deliverableSchema: draft.deliverableSchema ?? template?.defaultDeliverable ?? {},
-        verifierConfig: draft.verifierConfig ?? template?.defaultVerifier ?? {},
+        deliverableSchema: (draft.deliverableSchema ?? template?.defaultDeliverable ?? {}) as Record<string, unknown>,
+        verifierConfig: (draft.verifierConfig ?? template?.defaultVerifier ?? {}) as Record<string, unknown>,
         suggestedAmount: draft.suggestedAmount,
         suggestedDeadlineSec: draft.suggestedDeadlineSec,
         matchedTemplate: template?.id ?? draft.matchedTemplate ?? null,
@@ -61,8 +61,8 @@ export class ParseService {
       return {
         title: brief.slice(0, 200),
         description: brief,
-        deliverableSchema: template?.defaultDeliverable ?? { version: '1.0', payload: { kind: 'json', schema: {} } },
-        verifierConfig: template?.defaultVerifier ?? { type: 'llm-judge', config: { rubric: 'Evaluate the delivery.', passThreshold: 0.6 } },
+        deliverableSchema: (template?.defaultDeliverable ?? { version: '1.0', payload: { kind: 'json', schema: {} } }) as Record<string, unknown>,
+        verifierConfig: (template?.defaultVerifier ?? { type: 'llm-judge', config: { rubric: 'Evaluate the delivery.', passThreshold: 0.6 } }) as Record<string, unknown>,
         suggestedAmount: template?.suggestedAmountRangeUSDT[0] ?? '5000000000000000000',
         suggestedDeadlineSec: template?.suggestedDeadlineSec ?? 1800,
         matchedTemplate: template?.id ?? null,

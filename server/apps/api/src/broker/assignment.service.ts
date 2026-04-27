@@ -2,15 +2,16 @@
 
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import type { Prisma } from '@prisma/client';
 
 import { PrismaService } from '@forklift/database';
 import {
   createBrokerWalletClient,
   signAssign,
   hashData,
-  getBountyEscrowContract,
-  createKitePublicClient,
+  BOUNTY_ESCROW_ABI,
 } from '@forklift/chain';
+import { kiteTestnet } from '@forklift/chain';
 import type { ScoredCandidate } from './scoring.service';
 
 @Injectable()
@@ -50,7 +51,7 @@ export class AssignmentService {
       data: {
         hash: scoringHash,
         bountyId,
-        traceJson: scoringTrace,
+        traceJson: JSON.parse(JSON.stringify(scoringTrace)) as Prisma.InputJsonValue,
       },
     });
 
@@ -68,20 +69,20 @@ export class AssignmentService {
       );
 
       try {
-        const publicClient = createKitePublicClient();
-        const contract = getBountyEscrowContract(
-          escrowAddress as `0x${string}`,
-          publicClient,
-          walletClient,
-        );
-
-        const txHash = await contract.write.assign([
-          bountyId,
-          winner.agentAddress as `0x${string}`,
-          waitlist as `0x${string}`[],
-          scoringHash as `0x${string}`,
-          signature,
-        ]);
+        const txHash = await walletClient.writeContract({
+          address: escrowAddress as `0x${string}`,
+          abi: BOUNTY_ESCROW_ABI,
+          functionName: 'assign',
+          args: [
+            bountyId,
+            winner.agentAddress as `0x${string}`,
+            waitlist as `0x${string}`[],
+            scoringHash as `0x${string}`,
+            signature,
+          ],
+          chain: kiteTestnet,
+          account: walletClient.account!,
+        });
 
         this.logger.log(`Assignment tx submitted: ${txHash}`);
       } catch (error) {
