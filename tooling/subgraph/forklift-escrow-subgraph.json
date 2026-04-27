@@ -1,0 +1,17 @@
+{
+  "name": "forklift-escrow/1.0.0",
+  "version": "1",
+  "abis": {
+    "bountyescrow": {
+      "path": "./abis/bountyescrow.json"
+    }
+  },
+  "instances": [
+    {
+      "abi": "bountyescrow",
+      "address": "0x09474e4716261D4907569d2e325ae59553e4Ea45",
+      "startBlock": 21080461,
+      "chain": "kite-ai-testnet"
+    }
+  ]
+}
