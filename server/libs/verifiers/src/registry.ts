@@ -40,7 +40,7 @@ export class VerifierRegistry {
       const llm = this.llmFactory.create();
       this.register(new LLMJudgeVerifier(llm));
       this.llmJudgeRegistered = true;
-    } catch (error) {
+    } catch {
       this.logger.warn('LLM judge verifier unavailable — no API key configured');
     }
   }
