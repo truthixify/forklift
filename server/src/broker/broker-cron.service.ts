@@ -6,6 +6,7 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '@forklift/database';
 import { ScoringService } from './scoring.service';
 import { AssignmentService } from './assignment.service';
+import { SettlementService } from '../settlement/settlement.service';
 
 @Injectable()
 export class BrokerCronService {
@@ -15,11 +16,13 @@ export class BrokerCronService {
     private readonly prisma: PrismaService,
     private readonly scoringService: ScoringService,
     private readonly assignmentService: AssignmentService,
+    private readonly settlementService: SettlementService,
   ) {}
 
   @Cron(CronExpression.EVERY_10_SECONDS)
   async tick() {
     await this.processClaimWindows();
+    await this.processPosterSilence();
   }
 
   private async processClaimWindows() {
@@ -81,6 +84,52 @@ export class BrokerCronService {
         this.logger.log(`Assigned bounty ${bountyId} to ${scored[0]?.agentAddress}`);
       } catch (error) {
         this.logger.error(`Failed to score/assign bounty ${bountyId}`, error);
+      }
+    }
+  }
+
+  private async processPosterSilence() {
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+    const deliveredBounties = await this.prisma.indexedEvent.findMany({
+      where: {
+        eventName: 'DeliverySubmitted',
+        indexedAt: { lt: sevenDaysAgo },
+      },
+    });
+
+    for (const event of deliveredBounties) {
+      const bountyId = event.bountyId;
+      if (!bountyId) continue;
+
+      const alreadySettled = await this.prisma.indexedEvent.findFirst({
+        where: { bountyId, eventName: { in: ['BountyPaid', 'BountyRefunded'] } },
+      });
+      if (alreadySettled) continue;
+
+      const hasDispute = await this.prisma.dispute.findUnique({ where: { bountyId } });
+      if (hasDispute) continue;
+
+      const verifierResult = await this.prisma.verifierResult.findFirst({
+        where: { bountyId },
+        orderBy: { recordedAt: 'desc' },
+      });
+
+      if (!verifierResult) continue;
+
+      const delivery = await this.prisma.delivery.findFirst({
+        where: { bountyId },
+        orderBy: { submittedAt: 'desc' },
+      });
+
+      if (!delivery) continue;
+
+      this.logger.log(`Poster silence on ${bountyId} — broker decision binding (${verifierResult.passed ? 'pass' : 'fail'})`);
+
+      if (verifierResult.passed) {
+        await this.settlementService.release(bountyId, delivery.agentAddress, 'poster-silence-broker-pass');
+      } else {
+        await this.settlementService.refund(bountyId, 3, 'poster-silence-broker-fail');
       }
     }
   }

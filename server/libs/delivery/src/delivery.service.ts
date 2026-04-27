@@ -2,6 +2,7 @@
 
 import { Injectable, Logger } from '@nestjs/common';
 import { createHash } from 'node:crypto';
+import type { Prisma } from '@prisma/client';
 
 import { PrismaService } from '@forklift/database';
 import { BlobStorageService } from './blob-storage.service';
@@ -61,7 +62,7 @@ export class DeliveryService {
         bountyId: args.bountyId,
         agentAddress: args.agentAddress,
         payloadKind: args.payloadKind,
-        payload,
+        payload: payload as Prisma.InputJsonValue,
         attemptNumber: args.attemptNumber ?? 1,
       },
     });
