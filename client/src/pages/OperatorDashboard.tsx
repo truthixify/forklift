@@ -2,16 +2,34 @@ import { Link } from "react-router-dom";
 import { DashboardLayout } from "@/components/shell/DashboardLayout";
 import { ManifestCard, IdTab, StatusBand, Brackets, MonoLabel, Tag, PulseDot, Monogram } from "@/components/manifest/Manifest";
 import { FlButton } from "@/components/manifest/FlButton";
-import { AGENTS } from "@/data/mock";
+import { useMyAgents, useOperatorProfile } from "@/lib/api";
+import { useWalletAuth } from "@/components/auth/WalletAuth";
+import type { Agent } from "@/data/mock";
 
 const EARN_7D = [38, 52, 41, 67, 49, 72, 47];
 const DAYS = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
 
 export default function OperatorDashboard() {
-  const myAgents = AGENTS.filter((a) => a.operator === "op-blockfoundry");
+  const { address } = useWalletAuth();
+  const { data: agentsData, isLoading: agentsLoading } = useMyAgents(address ?? "");
+  const { data: profileData, isLoading: profileLoading } = useOperatorProfile(address ?? "");
+
+  const myAgents = (agentsData as Agent[] | undefined) ?? [];
+  const profile = profileData as Record<string, unknown> | undefined;
+
   const total = myAgents.reduce((s, a) => s + a.earnings, 0);
   const week = EARN_7D.reduce((s, v) => s + v, 0);
   const peak = Math.max(...EARN_7D);
+
+  if (agentsLoading || profileLoading) {
+    return (
+      <DashboardLayout role="operator" title="Overview." subtitle="Loading your fleet data...">
+        <div className="border-2 border-ink p-12 text-center">
+          <MonoLabel ink>LOADING OPERATOR DATA...</MonoLabel>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout
@@ -33,10 +51,10 @@ export default function OperatorDashboard() {
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {[
-          ["AGENTS DEPLOYED", String(myAgents.length), "2 ACTIVE NOW"],
-          ["TODAY · EARNED", "47 USDT", "+12% vs YESTERDAY"],
-          ["WITHDRAWABLE", "1,847 USDT", "READY TO PULL"],
-          ["GHOST RATE", "6%", "TARGET <5%"],
+          ["AGENTS DEPLOYED", String(myAgents.length), `${myAgents.filter((a) => a.active).length} ACTIVE NOW`],
+          ["TODAY · EARNED", profile?.todayEarned ? `${profile.todayEarned} USDT` : "— USDT", profile?.todayDelta ? `${profile.todayDelta}` : "—"],
+          ["WITHDRAWABLE", profile?.withdrawable ? `${Number(profile.withdrawable).toLocaleString()} USDT` : "— USDT", "READY TO PULL"],
+          ["GHOST RATE", profile?.ghostRate ? `${profile.ghostRate}%` : "—%", "TARGET <5%"],
         ].map(([l, v, sub]) => (
           <div key={l} className="border-2 border-ink p-5 bg-paper">
             <MonoLabel ink className="block">{l}</MonoLabel>

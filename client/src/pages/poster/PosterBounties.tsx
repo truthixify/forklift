@@ -1,10 +1,32 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { DashboardLayout } from "@/components/shell/DashboardLayout";
 import { MonoLabel, Tag } from "@/components/manifest/Manifest";
 import { FlButton } from "@/components/manifest/FlButton";
-import { BOUNTIES } from "@/data/mock";
+import { useBounties, usePoster } from "@/lib/api";
+import { useWalletAuth } from "@/components/auth/WalletAuth";
 import { BountyRow } from "@/components/manifest/Cards";
+import type { Bounty } from "@/data/mock";
+
+function toBounty(raw: Record<string, unknown>): Bounty {
+  return {
+    id: (raw.id ?? raw.bountyId ?? "") as string,
+    shortId: (raw.shortId ?? raw.id ?? "") as string,
+    title: (raw.title ?? "") as string,
+    brief: (raw.brief ?? "") as string,
+    template: (raw.template ?? raw.templateId ?? "") as string,
+    kind: (raw.kind ?? raw.deliverableKind ?? "file") as Bounty["kind"],
+    verifier: (raw.verifier ?? raw.verifiers ?? []) as Bounty["verifier"],
+    amount: Number(raw.amount ?? 0),
+    state: (raw.state ?? raw.status ?? "live") as Bounty["state"],
+    poster: (raw.poster ?? raw.posterAddress ?? "") as string,
+    agent: (raw.agent ?? raw.assignedAgent ?? undefined) as string | undefined,
+    claims: Number(raw.claims ?? raw.claimCount ?? 0),
+    deadline: (raw.deadline ?? "") as string,
+    createdAgo: (raw.createdAgo ?? "") as string,
+    tags: (raw.tags ?? []) as string[],
+  };
+}
 
 const FILTERS = [
   { id: "all", label: "ALL OPEN", states: ["live", "assigned", "delivered"] },
@@ -14,9 +36,21 @@ const FILTERS = [
 ] as const;
 
 export default function PosterBounties() {
+  const { address } = useWalletAuth();
+  const { data: bountyData, isLoading } = useBounties();
+  const { data: posterData } = usePoster(address ?? "");
   const [active, setActive] = useState<typeof FILTERS[number]["id"]>("all");
+
+  const myBounties: Bounty[] = useMemo(() => {
+    const raw = (bountyData as { bounties?: unknown[] })?.bounties;
+    if (!Array.isArray(raw)) return [];
+    const all = raw.map((b) => toBounty(b as Record<string, unknown>));
+    const posterId = (posterData as Record<string, unknown>)?.id as string | undefined;
+    return all.filter((b) => b.poster === address || b.poster === posterId);
+  }, [bountyData, address, posterData]);
+
   const filter = FILTERS.find((f) => f.id === active)!;
-  const list = BOUNTIES.filter((b) => filter.states.includes(b.state as never));
+  const list = myBounties.filter((b) => filter.states.includes(b.state as never));
 
   return (
     <DashboardLayout
@@ -27,10 +61,16 @@ export default function PosterBounties() {
         <Link to="/dashboard/poster/post"><FlButton variant="cobalt">+ Post a bounty</FlButton></Link>
       }
     >
+      {isLoading ? (
+        <div className="border-2 border-dashed border-ink/30 p-12 text-center">
+          <MonoLabel ink className="block">LOADING BOUNTIES...</MonoLabel>
+        </div>
+      ) : (
+      <>
       {/* Stage counters */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {FILTERS.map((f) => {
-          const n = BOUNTIES.filter((b) => f.states.includes(b.state as never)).length;
+          const n = myBounties.filter((b) => f.states.includes(b.state as never)).length;
           const isActive = active === f.id;
           return (
             <button
@@ -65,6 +105,8 @@ export default function PosterBounties() {
           </div>
         )}
       </div>
+      </>
+      )}
     </DashboardLayout>
   );
 }

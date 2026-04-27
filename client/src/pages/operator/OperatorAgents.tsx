@@ -1,11 +1,13 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/shell/DashboardLayout";
 import { ManifestCard, IdTab, StatusBand, MonoLabel, Monogram } from "@/components/manifest/Manifest";
 import { FlButton } from "@/components/manifest/FlButton";
 import { FlInput } from "@/components/manifest/FlInput";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { AGENTS } from "@/data/mock";
+import { useMyAgents } from "@/lib/api";
+import { useWalletAuth } from "@/components/auth/WalletAuth";
+import type { Agent } from "@/data/mock";
 import { ArrowRight } from "lucide-react";
 
 type Filter = "all" | "active" | "paused" | "probation";
@@ -14,18 +16,26 @@ type CapState = Record<string, { perTask: string; daily: string; active: boolean
 
 export default function OperatorAgents() {
   const nav = useNavigate();
+  const { address } = useWalletAuth();
+  const { data: agentsData, isLoading } = useMyAgents(address ?? "");
+  const mine = (agentsData as Agent[] | undefined) ?? [];
   const [filter, setFilter] = useState<Filter>("all");
-  const mine = AGENTS.filter((a) => a.operator === "op-blockfoundry");
 
-  const [caps, setCaps] = useState<CapState>(() =>
-    Object.fromEntries(mine.map((a) => [a.id, { perTask: "2.50", daily: "50.00", active: a.active }])),
-  );
+  const [caps, setCaps] = useState<CapState>({});
+
+  useEffect(() => {
+    if (mine.length > 0 && Object.keys(caps).length === 0) {
+      setCaps(Object.fromEntries(mine.map((a) => [a.id, { perTask: "2.50", daily: "50.00", active: a.active }])));
+    }
+  }, [mine, caps]);
 
   const [retuneId, setRetuneId] = useState<string | null>(null);
   const [draft, setDraft] = useState({ perTask: "2.50", daily: "50.00" });
 
+  const agentActive = (a: Agent) => caps[a.id]?.active ?? a.active;
+
   const list = mine.filter((a) => {
-    const isActive = caps[a.id]?.active ?? a.active;
+    const isActive = agentActive(a);
     if (filter === "active") return isActive && !a.probation;
     if (filter === "paused") return !isActive;
     if (filter === "probation") return a.probation;
@@ -33,8 +43,8 @@ export default function OperatorAgents() {
   });
 
   const count = (f: Filter) => {
-    if (f === "active") return mine.filter((a) => (caps[a.id]?.active ?? a.active) && !a.probation).length;
-    if (f === "paused") return mine.filter((a) => !(caps[a.id]?.active ?? a.active)).length;
+    if (f === "active") return mine.filter((a) => agentActive(a) && !a.probation).length;
+    if (f === "paused") return mine.filter((a) => !agentActive(a)).length;
     if (f === "probation") return mine.filter((a) => a.probation).length;
     return mine.length;
   };
@@ -54,6 +64,16 @@ export default function OperatorAgents() {
   const togglePause = (id: string) => {
     setCaps((prev) => ({ ...prev, [id]: { ...prev[id], active: !prev[id].active } }));
   };
+
+  if (isLoading) {
+    return (
+      <DashboardLayout role="operator" title="My agents." subtitle="Loading your fleet...">
+        <div className="border-2 border-ink p-12 text-center">
+          <MonoLabel ink>LOADING AGENTS...</MonoLabel>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout
@@ -76,7 +96,7 @@ export default function OperatorAgents() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         {list.map((a) => {
-          const state = caps[a.id];
+          const state = caps[a.id] ?? { perTask: "2.50", daily: "50.00", active: a.active };
           const isActive = state.active;
           const cap = parseFloat(state.perTask) || 2.5;
           const spend = 1.2 + (a.rating ?? 4) * 0.15;

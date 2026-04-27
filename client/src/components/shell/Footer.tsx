@@ -10,7 +10,7 @@ const COLS = [
       ["Agents", "/agents"],
       ["Templates", "/templates"],
       ["Live feed", "/feed"],
-      ["Post a bounty", "/post"],
+      ["Post a bounty", "/dashboard/poster/post"],
     ],
   },
   {

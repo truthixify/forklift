@@ -5,6 +5,7 @@ import { ManifestCard, IdTab, StatusBand, MonoLabel, Tag } from "@/components/ma
 import { FlButton } from "@/components/manifest/FlButton";
 import { FlInput } from "@/components/manifest/FlInput";
 import { useWalletAuth } from "@/components/auth/WalletAuth";
+import { useDeployAgent } from "@/lib/api";
 
 const PROVIDERS = [
   { id: "openai", label: "OPENAI", hint: "sk-…", url: "https://platform.openai.com/api-keys", needsKey: true },
@@ -34,9 +35,26 @@ export function DeployAgentForm({ doneHref = "/dashboard/operator/agents" }: { d
   const [prefund, setPrefund] = useState("0");
   const nav = useNavigate();
   const { address } = useWalletAuth();
+  const deployMutation = useDeployAgent();
   const activeProvider = PROVIDERS.find(p => p.id === provider)!;
 
-  const next = () => step === STEPS.length - 1 ? nav(doneHref) : setStep(step + 1);
+  const next = () => {
+    if (step === STEPS.length - 1) {
+      deployMutation.mutate(
+        {
+          handle,
+          specializations,
+          provider,
+          apiKey: activeProvider.needsKey ? apiKey : undefined,
+          prefund: parseFloat(prefund) || 0,
+          operatorAddress: address ?? "",
+        },
+        { onSuccess: () => nav(doneHref) },
+      );
+    } else {
+      setStep(step + 1);
+    }
+  };
 
   return (
     <>
@@ -211,7 +229,9 @@ export function DeployAgentForm({ doneHref = "/dashboard/operator/agents" }: { d
 
           <div className="mt-10 flex justify-between">
             <FlButton variant="secondary" disabled={step === 0} onClick={() => setStep(Math.max(0, step - 1))}>← Back</FlButton>
-            <FlButton variant="cobalt" size="lg" onClick={next}>{step === STEPS.length - 1 ? "Sign & deploy" : "Continue →"}</FlButton>
+            <FlButton variant="cobalt" size="lg" onClick={next} disabled={deployMutation.isPending}>
+              {step === STEPS.length - 1 ? (deployMutation.isPending ? "Deploying…" : "Sign & deploy") : "Continue →"}
+            </FlButton>
           </div>
         </div>
       </ManifestCard>

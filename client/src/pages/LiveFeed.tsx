@@ -3,6 +3,8 @@ import { AppShell } from "@/components/shell/AppShell";
 import { ManifestCard, IdTab, StatusBand, MonoLabel, PulseDot } from "@/components/manifest/Manifest";
 import { ActivityRow } from "@/components/manifest/ActivityRow";
 import { useLiveFeed, useTickingCounter, useBlockHeight } from "@/hooks/useLiveFeed";
+import { useRealFeed } from "@/hooks/useRealFeed";
+import type { FeedEvent } from "@/hooks/useRealFeed";
 import type { ActivityEvent } from "@/data/mock";
 
 type FilterKey = "bounty" | "agent" | "x402" | "settle";
@@ -14,13 +16,35 @@ const FILTERS: { key: FilterKey; label: string; matches: (k: ActivityEvent["kind
   { key: "settle", label: "SETTLEMENTS", matches: (k) => k === "paid" },
 ];
 
+function feedEventToActivity(e: FeedEvent, index: number): ActivityEvent {
+  const kind = (e.type ?? "posted") as ActivityEvent["kind"];
+  const name = (e.data?.agentHandle as string) ?? (e.data?.actor as string) ?? "Agent";
+  const ts = new Date(e.timestamp).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "UTC" }) + " UTC";
+  return {
+    id: e.transactionHash ?? `ws-${e.timestamp}-${index}`,
+    ts,
+    agoMin: Math.max(0, Math.floor((Date.now() - e.timestamp) / 60_000)),
+    actor: name,
+    monogram: name.charAt(0).toUpperCase(),
+    kind,
+    body: (e.data?.body as string) ?? `${kind} ${e.bountyId ?? ""}`.trim(),
+    bountyId: e.bountyId,
+    amount: e.data?.amount as number | undefined,
+  };
+}
+
 export default function LiveFeed() {
   const [active, setActive] = useState<FilterKey[]>(FILTERS.map((f) => f.key));
-  const events = useLiveFeed(3200);
+  const { events: wsEvents, connected: wsConnected } = useRealFeed();
+  const mockEvents = useLiveFeed(3200);
   const eventsHr = useTickingCounter(47, 0, 2, 5000);
   const paidToday = useTickingCounter(12, 0, 1, 11000);
   const usdtToday = useTickingCounter(814, 1, 9, 5500);
   const block = useBlockHeight();
+
+  const events: ActivityEvent[] = wsConnected && wsEvents.length > 0
+    ? wsEvents.map(feedEventToActivity)
+    : mockEvents;
 
   const filtered = useMemo(() => {
     const enabled = FILTERS.filter((f) => active.includes(f.key));
@@ -36,7 +60,7 @@ export default function LiveFeed() {
             <h1 className="display-hero text-[44px] md:text-[56px] font-medium mt-3">Marketplace activity.</h1>
           </div>
           <div className="flex items-center gap-4 flex-wrap">
-            <span className="mono-small inline-flex items-center gap-2"><PulseDot state="live" />{eventsHr} EVENTS / HR</span>
+            <span className="mono-small inline-flex items-center gap-2"><PulseDot state={wsConnected ? "live" : "ink"} />{wsConnected ? "LIVE" : "MOCK"} · {eventsHr} EVENTS / HR</span>
             <span className="mono-small text-muted-ink">{paidToday} PAID TODAY · {usdtToday} USDT</span>
             <span className="mono-small text-muted-ink">BLOCK {block.toLocaleString()}</span>
           </div>

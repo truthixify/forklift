@@ -3,7 +3,8 @@ import { AppShell } from "@/components/shell/AppShell";
 import { ManifestCard, IdTab, MonoLabel, Tag, PulseDot } from "@/components/manifest/Manifest";
 import { BountyRow } from "@/components/manifest/Cards";
 import { FlButton } from "@/components/manifest/FlButton";
-import { BOUNTIES } from "@/data/mock";
+import { useBounties } from "@/lib/api";
+import type { Bounty } from "@/data/mock";
 
 const FILTERS = ["All", "Live", "Open", "Settled"];
 const SORTS = ["NEWEST", "HIGHEST PAY", "ENDING SOON", "MOST CLAIMS"];
@@ -15,18 +16,45 @@ const PAY_BUCKETS = [
   { id: "xl", label: "500+",    min: 500, max: Infinity },
 ];
 
+function toBounty(raw: Record<string, unknown>): Bounty {
+  return {
+    id: (raw.id ?? raw.bountyId ?? "") as string,
+    shortId: (raw.shortId ?? raw.id ?? "") as string,
+    title: (raw.title ?? "") as string,
+    brief: (raw.brief ?? "") as string,
+    template: (raw.template ?? raw.templateId ?? "") as string,
+    kind: (raw.kind ?? raw.deliverableKind ?? "file") as Bounty["kind"],
+    verifier: (raw.verifier ?? raw.verifiers ?? []) as Bounty["verifier"],
+    amount: Number(raw.amount ?? 0),
+    state: (raw.state ?? raw.status ?? "live") as Bounty["state"],
+    poster: (raw.poster ?? raw.posterAddress ?? "") as string,
+    agent: (raw.agent ?? raw.assignedAgent ?? undefined) as string | undefined,
+    claims: Number(raw.claims ?? raw.claimCount ?? 0),
+    deadline: (raw.deadline ?? "") as string,
+    createdAgo: (raw.createdAgo ?? "") as string,
+    tags: (raw.tags ?? []) as string[],
+  };
+}
+
 export default function BountyBoard() {
   const [filter, setFilter] = useState("All");
   const [sort, setSort] = useState("NEWEST");
+  const { data, isLoading, isError } = useBounties();
+
+  const bounties: Bounty[] = useMemo(() => {
+    const raw = (data as { bounties?: unknown[] })?.bounties;
+    if (!Array.isArray(raw)) return [];
+    return raw.map((b) => toBounty(b as Record<string, unknown>));
+  }, [data]);
 
   const rows = useMemo(() => {
-    let r = [...BOUNTIES];
+    let r = [...bounties];
     if (filter === "Live") r = r.filter((b) => b.state === "live");
     if (filter === "Open") r = r.filter((b) => ["live", "assigned", "delivered"].includes(b.state));
     if (filter === "Settled") r = r.filter((b) => ["paid", "refunded", "expired", "disputed"].includes(b.state));
     if (sort === "HIGHEST PAY") r.sort((a, b) => b.amount - a.amount);
     return r;
-  }, [filter, sort]);
+  }, [bounties, filter, sort]);
 
   return (
     <AppShell>
@@ -109,6 +137,21 @@ export default function BountyBoard() {
           </div>
         </div>
         <div className="space-y-3">
+          {isLoading && (
+            <div className="text-center py-12">
+              <MonoLabel>LOADING BOUNTIES...</MonoLabel>
+            </div>
+          )}
+          {isError && (
+            <div className="text-center py-12">
+              <MonoLabel>FAILED TO LOAD BOUNTIES</MonoLabel>
+            </div>
+          )}
+          {!isLoading && !isError && rows.length === 0 && (
+            <div className="text-center py-12">
+              <MonoLabel>NO BOUNTIES FOUND</MonoLabel>
+            </div>
+          )}
           {rows.map((b) => <BountyRow key={b.id} bounty={b} />)}
         </div>
 

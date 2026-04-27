@@ -1,39 +1,100 @@
+import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { DashboardLayout } from "@/components/shell/DashboardLayout";
 import { ManifestCard, IdTab, StatusBand, Brackets, MonoLabel, Tag, PulseDot } from "@/components/manifest/Manifest";
 import { FlButton } from "@/components/manifest/FlButton";
-import { POSTERS, BOUNTIES } from "@/data/mock";
+import { useBounties, usePoster } from "@/lib/api";
+import { useWalletAuth } from "@/components/auth/WalletAuth";
+import type { Bounty } from "@/data/mock";
 
-const SPEND_7D = [12, 28, 0, 45, 18, 62, 49];
+function toBounty(raw: Record<string, unknown>): Bounty {
+  return {
+    id: (raw.id ?? raw.bountyId ?? "") as string,
+    shortId: (raw.shortId ?? raw.id ?? "") as string,
+    title: (raw.title ?? "") as string,
+    brief: (raw.brief ?? "") as string,
+    template: (raw.template ?? raw.templateId ?? "") as string,
+    kind: (raw.kind ?? raw.deliverableKind ?? "file") as Bounty["kind"],
+    verifier: (raw.verifier ?? raw.verifiers ?? []) as Bounty["verifier"],
+    amount: Number(raw.amount ?? 0),
+    state: (raw.state ?? raw.status ?? "live") as Bounty["state"],
+    poster: (raw.poster ?? raw.posterAddress ?? "") as string,
+    agent: (raw.agent ?? raw.assignedAgent ?? undefined) as string | undefined,
+    claims: Number(raw.claims ?? raw.claimCount ?? 0),
+    deadline: (raw.deadline ?? "") as string,
+    createdAgo: (raw.createdAgo ?? "") as string,
+    tags: (raw.tags ?? []) as string[],
+  };
+}
+
 const DAYS = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
 
 export default function PosterDashboard() {
-  const me = POSTERS[0];
-  const reviewQ = BOUNTIES.filter((b) => b.state === "delivered").slice(0, 3);
-  const totalSpend = SPEND_7D.reduce((s, v) => s + v, 0);
-  const peak = Math.max(...SPEND_7D);
+  const { address } = useWalletAuth();
+  const { data: bountyData, isLoading: bLoading } = useBounties();
+  const { data: posterData, isLoading: pLoading } = usePoster(address ?? "");
 
-  const live = BOUNTIES.filter((b) => b.state === "live").length;
-  const inProgress = BOUNTIES.filter((b) => b.state === "assigned").length;
+  const bounties: Bounty[] = useMemo(() => {
+    const raw = (bountyData as { bounties?: unknown[] })?.bounties;
+    if (!Array.isArray(raw)) return [];
+    return raw.map((b) => toBounty(b as Record<string, unknown>));
+  }, [bountyData]);
+
+  const myBounties = useMemo(
+    () => bounties.filter((b) => b.poster === address || b.poster === (posterData as Record<string, unknown>)?.id),
+    [bounties, address, posterData],
+  );
+
+  const me = posterData as Record<string, unknown> | undefined;
+
+  const reviewQ = myBounties.filter((b) => b.state === "delivered").slice(0, 3);
+  const live = myBounties.filter((b) => b.state === "live").length;
+  const inProgress = myBounties.filter((b) => b.state === "assigned").length;
+  const paidBounties = myBounties.filter((b) => b.state === "paid");
+  const totalSpentAll = paidBounties.reduce((s, b) => s + b.amount, 0);
+  const paidCount = paidBounties.length;
+
+  const spendByDay = useMemo(() => {
+    const spend = [0, 0, 0, 0, 0, 0, 0];
+    paidBounties.forEach((b, i) => { spend[i % 7] += b.amount; });
+    return spend;
+  }, [paidBounties]);
+
+  const totalSpend = spendByDay.reduce((s, v) => s + v, 0);
+  const peak = Math.max(...spendByDay, 1);
+
+  const handle = (me?.handle ?? me?.displayName ?? (address ? `${address.slice(0, 6)}...${address.slice(-4)}` : "poster")) as string;
+  const disputeRate = Number(me?.disputeRate ?? 0);
+  const frivolous = Number(me?.frivolous ?? 0);
+  const repeatAgents = Number(me?.repeatAgents ?? 0);
+  const avgReviewTime = (me?.avgReviewTime ?? "--:--") as string;
+
+  const isLoading = bLoading || pLoading;
 
   return (
     <DashboardLayout
       role="poster"
       title="Overview."
-      subtitle={`Welcome back, ${me.handle}. Here's the pulse of your work pipeline today.`}
+      subtitle={`Welcome back, ${handle}. Here's the pulse of your work pipeline today.`}
       headerAction={
         <Link to="/dashboard/poster/post">
           <FlButton variant="cobalt">+ Post a bounty</FlButton>
         </Link>
       }
     >
+      {isLoading ? (
+        <div className="border-2 border-dashed border-ink/30 p-12 text-center">
+          <MonoLabel ink className="block">LOADING DASHBOARD DATA...</MonoLabel>
+        </div>
+      ) : (
+      <>
       {/* KPI strip */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {[
           ["LIVE", String(live), "OPEN FOR CLAIM"],
           ["AWAITING REVIEW", String(reviewQ.length), "ACT WITHIN 72H"],
           ["IN PROGRESS", String(inProgress), "AGENTS WORKING"],
-          ["AVG REVIEW", me.avgReviewTime, "YOUR REPLY TIME"],
+          ["AVG REVIEW", avgReviewTime, "YOUR REPLY TIME"],
         ].map(([l, v, sub]) => (
           <div key={l} className="border-2 border-ink p-5 bg-paper">
             <MonoLabel ink className="block">{l}</MonoLabel>
@@ -62,7 +123,7 @@ export default function PosterDashboard() {
                 </div>
               </div>
               <div className="flex items-end gap-3 h-44 border-b border-ink">
-                {SPEND_7D.map((v, i) => (
+                {spendByDay.map((v, i) => (
                   <div key={DAYS[i]} className="flex-1 flex flex-col items-center gap-2 h-full justify-end">
                     <span className="mono-small tabular-nums">{v}</span>
                     <div
@@ -101,9 +162,9 @@ export default function PosterDashboard() {
 
           <ManifestCard idTab={<IdTab variant="cobalt">REPUTATION</IdTab>} formFooter="POSTER STANDING">
             <div className="p-6 space-y-3">
-              <div className="flex justify-between"><MonoLabel>DISPUTE RATE</MonoLabel><span className="mono-inline">{(me.disputeRate * 100).toFixed(0)}%</span></div>
-              <div className="flex justify-between"><MonoLabel>FRIVOLOUS</MonoLabel><span className="mono-inline">{me.frivolous}</span></div>
-              <div className="flex justify-between"><MonoLabel>REPEAT AGENTS</MonoLabel><span className="mono-inline">{(me.repeatAgents * 100).toFixed(0)}%</span></div>
+              <div className="flex justify-between"><MonoLabel>DISPUTE RATE</MonoLabel><span className="mono-inline">{(disputeRate * 100).toFixed(0)}%</span></div>
+              <div className="flex justify-between"><MonoLabel>FRIVOLOUS</MonoLabel><span className="mono-inline">{frivolous}</span></div>
+              <div className="flex justify-between"><MonoLabel>REPEAT AGENTS</MonoLabel><span className="mono-inline">{(repeatAgents * 100).toFixed(0)}%</span></div>
               <div className="hairline" />
               <div className="flex justify-between items-baseline">
                 <MonoLabel ink>STANDING</MonoLabel>
@@ -117,14 +178,16 @@ export default function PosterDashboard() {
               <MonoLabel>TOTAL SPEND</MonoLabel>
               <div className="mt-1 inline-block">
                 <Brackets>
-                  <span className="font-display font-medium text-[44px] leading-none">{me.paid * 18}</span>
+                  <span className="font-display font-medium text-[44px] leading-none">{totalSpentAll}</span>
                 </Brackets>
               </div>
-              <div className="mono-small text-muted-ink mt-2">USDT · {me.paid} PAID BOUNTIES</div>
+              <div className="mono-small text-muted-ink mt-2">USDT · {paidCount} PAID BOUNTIES</div>
             </div>
           </ManifestCard>
         </div>
       </div>
+      </>
+      )}
     </DashboardLayout>
   );
 }

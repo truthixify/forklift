@@ -1,17 +1,134 @@
+import { useMemo } from "react";
 import { useParams, Link } from "react-router-dom";
 import { ArrowUpRight } from "lucide-react";
 import { AppShell } from "@/components/shell/AppShell";
 import { ManifestCard, IdTab, StatusBand, Brackets, MonoLabel, Tag, FormFooter, Monogram, PaidStamp } from "@/components/manifest/Manifest";
 import { FlButton } from "@/components/manifest/FlButton";
 import { ActivityRow } from "@/components/manifest/ActivityRow";
-import { BOUNTIES, AGENTS, POSTERS, ACTIVITY } from "@/data/mock";
+import { useBounty, useAgents } from "@/lib/api";
+import { useLiveFeed } from "@/hooks/useLiveFeed";
+import type { Bounty, Agent, Poster, ActivityEvent } from "@/data/mock";
+
+function toBounty(raw: Record<string, unknown>): Bounty {
+  return {
+    id: (raw.id ?? raw.bountyId ?? "") as string,
+    shortId: (raw.shortId ?? raw.id ?? "") as string,
+    title: (raw.title ?? "") as string,
+    brief: (raw.brief ?? "") as string,
+    template: (raw.template ?? raw.templateId ?? "") as string,
+    kind: (raw.kind ?? raw.deliverableKind ?? "file") as Bounty["kind"],
+    verifier: (raw.verifier ?? raw.verifiers ?? []) as Bounty["verifier"],
+    amount: Number(raw.amount ?? 0),
+    state: (raw.state ?? raw.status ?? "live") as Bounty["state"],
+    poster: (raw.poster ?? raw.posterAddress ?? "") as string,
+    agent: (raw.agent ?? raw.assignedAgent ?? undefined) as string | undefined,
+    claims: Number(raw.claims ?? raw.claimCount ?? 0),
+    deadline: (raw.deadline ?? "") as string,
+    createdAgo: (raw.createdAgo ?? "") as string,
+    tags: (raw.tags ?? []) as string[],
+  };
+}
+
+function toAgent(raw: Record<string, unknown>): Agent {
+  return {
+    id: (raw.id ?? raw.address ?? "") as string,
+    handle: (raw.handle ?? raw.displayName ?? raw.name ?? "") as string,
+    monogram: (raw.monogram ?? ((raw.handle ?? raw.displayName ?? "?") as string).charAt(0).toUpperCase()) as string,
+    wallet: (raw.wallet ?? raw.address ?? "") as string,
+    specializations: (raw.specializations ?? raw.templates ?? []) as string[],
+    paid: Number(raw.paid ?? raw.paidCount ?? 0),
+    rating: Number(raw.rating ?? raw.avgRating ?? 0),
+    earnings: Number(raw.earnings ?? raw.totalEarnings ?? 0),
+    active: (raw.active ?? true) as boolean,
+    probation: (raw.probation ?? false) as boolean | undefined,
+    joined: (raw.joined ?? "") as string,
+    avgTime: (raw.avgTime ?? "—") as string,
+    revisionRate: Number(raw.revisionRate ?? 0),
+    repeatPosters: Number(raw.repeatPosters ?? 0),
+    bio: (raw.bio ?? "") as string,
+    operator: (raw.operator ?? raw.operatorAddress ?? "") as string,
+  };
+}
+
+function toPoster(raw: Record<string, unknown>): Poster {
+  return {
+    id: (raw.id ?? raw.address ?? "") as string,
+    handle: (raw.handle ?? raw.displayName ?? "") as string,
+    monogram: (raw.monogram ?? ((raw.handle ?? raw.displayName ?? "?") as string).charAt(0).toUpperCase()) as string,
+    wallet: (raw.wallet ?? raw.address ?? "") as string,
+    posted: Number(raw.posted ?? raw.totalPosted ?? 0),
+    paid: Number(raw.paid ?? raw.totalPaid ?? 0),
+    abandoned: Number(raw.abandoned ?? 0),
+    disputeRate: Number(raw.disputeRate ?? 0),
+    frivolous: Number(raw.frivolous ?? 0),
+    avgReviewTime: (raw.avgReviewTime ?? "—") as string,
+    repeatAgents: Number(raw.repeatAgents ?? 0),
+    joined: (raw.joined ?? "") as string,
+  };
+}
 
 export default function BountyDetail() {
   const { id } = useParams();
-  const bounty = BOUNTIES.find((b) => b.id === id) ?? BOUNTIES[0];
-  const poster = POSTERS.find((p) => p.id === bounty.poster) ?? POSTERS[0];
-  const winner = AGENTS.find((a) => a.id === bounty.agent);
-  const claims = AGENTS.slice(0, Math.min(bounty.claims, 4));
+  const { data, isLoading, isError } = useBounty(id ?? "");
+  const { data: agentsData } = useAgents();
+  const liveEvents = useLiveFeed();
+
+  const bounty: Bounty | null = useMemo(() => {
+    const raw = data as Record<string, unknown> | undefined;
+    if (!raw) return null;
+    const events = raw.events as Record<string, unknown>[] | undefined;
+    const sig = raw.signature as Record<string, unknown> | undefined;
+    const source = sig ?? (events && events.length > 0 ? events[0] : null) ?? raw;
+    return toBounty(source as Record<string, unknown>);
+  }, [data]);
+
+  const agents: Agent[] = useMemo(() => {
+    const raw = (agentsData as { agents?: unknown[] })?.agents;
+    if (!Array.isArray(raw)) return [];
+    return raw.map((a) => toAgent(a as Record<string, unknown>));
+  }, [agentsData]);
+
+  const poster: Poster = useMemo(() => {
+    if (!bounty) return toPoster({});
+    const raw = data as Record<string, unknown> | undefined;
+    const posterRaw = raw?.poster as Record<string, unknown> | undefined;
+    if (posterRaw && typeof posterRaw === "object") return toPoster(posterRaw);
+    return toPoster({ id: bounty.poster, handle: bounty.poster });
+  }, [data, bounty]);
+
+  const winner = useMemo(() => {
+    if (!bounty?.agent) return undefined;
+    return agents.find((a) => a.id === bounty.agent);
+  }, [agents, bounty]);
+
+  const claims = useMemo(() => {
+    if (!bounty) return [];
+    return agents.slice(0, Math.min(bounty.claims, 4));
+  }, [agents, bounty]);
+
+  const activity: ActivityEvent[] = useMemo(() => {
+    return liveEvents.slice(0, 5);
+  }, [liveEvents]);
+
+  if (isLoading) {
+    return (
+      <AppShell>
+        <section className="max-w-[1440px] mx-auto px-6 pt-12 pb-24">
+          <div className="text-center py-24"><MonoLabel>LOADING BOUNTY...</MonoLabel></div>
+        </section>
+      </AppShell>
+    );
+  }
+
+  if (isError || !bounty) {
+    return (
+      <AppShell>
+        <section className="max-w-[1440px] mx-auto px-6 pt-12 pb-24">
+          <div className="text-center py-24"><MonoLabel>BOUNTY NOT FOUND</MonoLabel></div>
+        </section>
+      </AppShell>
+    );
+  }
 
   const stateLabel = bounty.state.toUpperCase();
 
@@ -252,7 +369,7 @@ export default function BountyDetail() {
 
             <ManifestCard idTab={<IdTab variant="ink">TIMELINE</IdTab>} formFooter="EVENT LOG">
               <ul>
-                {ACTIVITY.filter((e) => e.bountyId === bounty.shortId || true).slice(0, 5).map((e) => (
+                {activity.map((e) => (
                   <ActivityRow key={e.id} event={e} />
                 ))}
               </ul>

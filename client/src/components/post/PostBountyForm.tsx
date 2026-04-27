@@ -3,22 +3,41 @@ import { useNavigate } from "react-router-dom";
 import { ManifestCard, IdTab, StatusBand, Brackets, MonoLabel, Tag, PulseDot } from "@/components/manifest/Manifest";
 import { FlButton } from "@/components/manifest/FlButton";
 import { FlTextarea, FlInput } from "@/components/manifest/FlInput";
-import { TEMPLATES } from "@/data/mock";
+import { useCreateDraft, useConfirmBounty, useTemplates } from "@/lib/api";
+import { useWalletAuth } from "@/components/auth/WalletAuth";
 
 const SAMPLE_BRIEF = "Design a minimalist logo for my Shopify store, plant-based skincare brand 'Quiet Botanic'. Vector format, transparent SVG plus PNG at 1024×1024. No mascots, no script fonts. Should read at favicon size.";
 
-const PARSE_TRACE = [
-  "TOKENIZE BRIEF · 47 TOKENS",
-  "INFER DELIVERABLE TYPE → FILE",
-  "MATCH TEMPLATE → LOGO-DESIGN · CONFIDENCE 0.94",
-  "DETECT FORMAT CONSTRAINTS → SVG + PNG @ 1024",
-  "DETECT NEGATIVE CONSTRAINTS → NO MASCOT · NO SCRIPT",
-  "ASSEMBLE VERIFIER → FILE-CHECK + JUDGE",
-  "ESTIMATE PRICE BAND → 18–32 USDT · MEDIAN 25",
+const FALLBACK_TRACE = [
+  "TOKENIZE BRIEF",
+  "INFER DELIVERABLE TYPE",
+  "MATCH TEMPLATE",
+  "DETECT FORMAT CONSTRAINTS",
+  "DETECT NEGATIVE CONSTRAINTS",
+  "ASSEMBLE VERIFIER",
+  "ESTIMATE PRICE BAND",
   "DRAFT MANIFEST · READY FOR REVIEW",
 ];
 
 type Stage = 1 | 2 | 3 | 1.5;
+
+interface DraftResult {
+  id?: string;
+  bountyId?: string;
+  title?: string;
+  template?: string;
+  templateId?: string;
+  kind?: string;
+  deliverableKind?: string;
+  verifier?: string[];
+  verifiers?: string[];
+  claimWindow?: string;
+  amount?: number;
+  suggestedAmount?: number;
+  brief?: string;
+  parseTrace?: string[];
+  shortId?: string;
+}
 
 interface Props {
   /** Where to send the user after a successful post. */
@@ -31,14 +50,30 @@ export function PostBountyForm({ dashboardHref = "/dashboard/poster" }: Props) {
   const [brief, setBrief] = useState(SAMPLE_BRIEF);
   const [amount, setAmount] = useState("25");
   const [traceLine, setTraceLine] = useState(0);
+  const [draft, setDraft] = useState<DraftResult | null>(null);
+  const [confirmedId, setConfirmedId] = useState<string | null>(null);
+  const [confirmedShortId, setConfirmedShortId] = useState<string | null>(null);
   const nav = useNavigate();
+  const { address } = useWalletAuth();
+
+  const { data: templatesData } = useTemplates();
+  const createDraft = useCreateDraft();
+  const confirmBounty = useConfirmBounty();
+
+  const templates = Array.isArray((templatesData as { templates?: unknown[] })?.templates)
+    ? ((templatesData as { templates: Array<{ id: string; name: string }> }).templates)
+    : Array.isArray(templatesData)
+      ? (templatesData as Array<{ id: string; name: string }>)
+      : [];
+
+  const parseTrace = draft?.parseTrace ?? FALLBACK_TRACE;
 
   useEffect(() => {
     if (stage !== 1.5) return;
     setTraceLine(0);
     const id = setInterval(() => {
       setTraceLine((n) => {
-        if (n >= PARSE_TRACE.length) {
+        if (n >= parseTrace.length) {
           clearInterval(id);
           setTimeout(() => setStage(2), 350);
           return n;
@@ -47,7 +82,58 @@ export function PostBountyForm({ dashboardHref = "/dashboard/poster" }: Props) {
       });
     }, 280);
     return () => clearInterval(id);
-  }, [stage]);
+  }, [stage, parseTrace.length]);
+
+  function handleParseAndReview() {
+    createDraft.mutate(
+      { brief, templateHint: template ?? undefined },
+      {
+        onSuccess: (data) => {
+          const result = data as DraftResult;
+          setDraft(result);
+          if (result.amount || result.suggestedAmount) {
+            setAmount(String(result.amount ?? result.suggestedAmount ?? 25));
+          }
+          setStage(1.5);
+        },
+        onError: () => {
+          setDraft(null);
+          setStage(1.5);
+        },
+      },
+    );
+  }
+
+  function handleConfirmAndPost() {
+    const draftId = draft?.id ?? draft?.bountyId;
+    confirmBounty.mutate(
+      {
+        draftId,
+        brief,
+        title: draft?.title,
+        template: draft?.template ?? draft?.templateId ?? template,
+        amount: parseFloat(amount || "0"),
+        posterAddress: address,
+      },
+      {
+        onSuccess: (data) => {
+          const result = data as { id?: string; bountyId?: string; shortId?: string };
+          setConfirmedId(result.id ?? result.bountyId ?? draftId ?? "");
+          setConfirmedShortId(result.shortId ?? draft?.shortId ?? "");
+          setStage(3);
+        },
+        onError: () => {
+          setStage(3);
+        },
+      },
+    );
+  }
+
+  const draftTitle = draft?.title ?? "Parsed bounty";
+  const draftTemplate = (draft?.template ?? draft?.templateId ?? template ?? "CUSTOM").toUpperCase();
+  const draftKind = (draft?.kind ?? draft?.deliverableKind ?? "file").toUpperCase();
+  const draftVerifiers = draft?.verifier ?? draft?.verifiers ?? [];
+  const draftClaimWindow = draft?.claimWindow ?? "02:00:00";
 
   const stageNum = stage === 1.5 ? 1 : stage;
 
@@ -81,7 +167,7 @@ export function PostBountyForm({ dashboardHref = "/dashboard/poster" }: Props) {
             <div className="mt-6">
               <MonoLabel ink className="block mb-2">OPTIONAL · TEMPLATE</MonoLabel>
               <div className="flex flex-wrap gap-2">
-                {TEMPLATES.slice(0, 8).map((t) => {
+                {(templates.length > 0 ? templates : []).slice(0, 8).map((t) => {
                   const isOn = template === t.id;
                   return (
                     <button
@@ -98,7 +184,14 @@ export function PostBountyForm({ dashboardHref = "/dashboard/poster" }: Props) {
               </div>
             </div>
             <div className="mt-8 flex justify-end">
-              <FlButton variant="cobalt" size="lg" onClick={() => setStage(1.5)}>Parse & review →</FlButton>
+              <FlButton
+                variant="cobalt"
+                size="lg"
+                onClick={handleParseAndReview}
+                disabled={createDraft.isPending || !brief.trim()}
+              >
+                {createDraft.isPending ? "Parsing..." : "Parse & review →"}
+              </FlButton>
             </div>
           </div>
         </ManifestCard>
@@ -109,17 +202,17 @@ export function PostBountyForm({ dashboardHref = "/dashboard/poster" }: Props) {
           <StatusBand state="live">BROKER PARSING BRIEF · STREAMING TRACE</StatusBand>
           <div className="p-8">
             <div className="border border-ink bg-ink text-paper p-5 mono-inline text-[13px] leading-[1.85] min-h-[280px]">
-              {PARSE_TRACE.slice(0, traceLine).map((l, i) => (
+              {parseTrace.slice(0, traceLine).map((l, i) => (
                 <div key={i} className="flex items-start gap-3">
                   <span className="text-cobalt">›</span>
                   <span>{l}</span>
                   <span className="ml-auto text-paper/40">OK</span>
                 </div>
               ))}
-              {traceLine < PARSE_TRACE.length && (
+              {traceLine < parseTrace.length && (
                 <div className="flex items-center gap-3 text-hivis">
                   <span>›</span>
-                  <span>{PARSE_TRACE[traceLine] ?? ""}</span>
+                  <span>{parseTrace[traceLine] ?? ""}</span>
                   <span className="ml-2 inline-block w-2 h-4 bg-hivis animate-pulse" />
                 </div>
               )}
@@ -127,7 +220,7 @@ export function PostBountyForm({ dashboardHref = "/dashboard/poster" }: Props) {
             <div className="hairline-sweep mt-5" />
             <div className="mt-3 flex items-center justify-between">
               <span className="mono-small inline-flex items-center gap-2"><PulseDot state="live" />BROKER · agent-broker-01</span>
-              <MonoLabel>STEP {Math.min(traceLine, PARSE_TRACE.length)} / {PARSE_TRACE.length}</MonoLabel>
+              <MonoLabel>STEP {Math.min(traceLine, parseTrace.length)} / {parseTrace.length}</MonoLabel>
             </div>
           </div>
         </ManifestCard>
@@ -140,12 +233,12 @@ export function PostBountyForm({ dashboardHref = "/dashboard/poster" }: Props) {
               <StatusBand state="delivered" pulse={false}>BROKER PARSED · EDIT ANY FIELD</StatusBand>
               <div className="p-7">
                 <MonoLabel ink>TITLE</MonoLabel>
-                <FlInput defaultValue="Minimalist logo for plant-based skincare Shopify store" className="mt-2" />
+                <FlInput defaultValue={draftTitle} className="mt-2" />
                 <div className="mt-5 grid grid-cols-2 gap-4">
-                  <div><MonoLabel ink className="block mb-2">TEMPLATE</MonoLabel><Tag variant="cobalt">LOGO-DESIGN</Tag></div>
-                  <div><MonoLabel ink className="block mb-2">DELIVERABLE</MonoLabel><Tag>FILE · SVG + PNG</Tag></div>
-                  <div><MonoLabel ink className="block mb-2">VERIFIER</MonoLabel><div className="flex gap-2"><Tag>FILE-CHECK</Tag><Tag>JUDGE</Tag></div></div>
-                  <div><MonoLabel ink className="block mb-2">CLAIM WINDOW</MonoLabel><Tag>02:00:00</Tag></div>
+                  <div><MonoLabel ink className="block mb-2">TEMPLATE</MonoLabel><Tag variant="cobalt">{draftTemplate}</Tag></div>
+                  <div><MonoLabel ink className="block mb-2">DELIVERABLE</MonoLabel><Tag>{draftKind}</Tag></div>
+                  <div><MonoLabel ink className="block mb-2">VERIFIER</MonoLabel><div className="flex gap-2">{draftVerifiers.length > 0 ? draftVerifiers.map((v) => <Tag key={v}>{String(v).toUpperCase()}</Tag>) : <Tag>JUDGE</Tag>}</div></div>
+                  <div><MonoLabel ink className="block mb-2">CLAIM WINDOW</MonoLabel><Tag>{draftClaimWindow}</Tag></div>
                 </div>
                 <div className="mt-5">
                   <MonoLabel ink className="block mb-2">PARSED BRIEF</MonoLabel>
@@ -173,20 +266,27 @@ export function PostBountyForm({ dashboardHref = "/dashboard/poster" }: Props) {
             </ManifestCard>
             <div className="flex justify-between gap-3">
               <FlButton variant="secondary" onClick={() => setStage(1)}>← Back</FlButton>
-              <FlButton variant="cobalt" size="lg" onClick={() => setStage(3)}>Confirm & post →</FlButton>
+              <FlButton
+                variant="cobalt"
+                size="lg"
+                onClick={handleConfirmAndPost}
+                disabled={confirmBounty.isPending}
+              >
+                {confirmBounty.isPending ? "Posting..." : "Confirm & post →"}
+              </FlButton>
             </div>
           </div>
         </div>
       )}
 
       {stage === 3 && (
-        <ManifestCard shadow="hivis" idTab={<IdTab variant="hivis">POSTED · #FL-0043</IdTab>} formFooter="BOUNTY POSTED CONFIRMATION" pageNumber="03 / 03">
+        <ManifestCard shadow="hivis" idTab={<IdTab variant="hivis">POSTED{confirmedShortId ? ` · #${confirmedShortId}` : ""}</IdTab>} formFooter="BOUNTY POSTED CONFIRMATION" pageNumber="03 / 03">
           <StatusBand state="paid" pulse={false}>BOUNTY POSTED · LIVE ON THE BOARD</StatusBand>
           <div className="p-12 text-center">
             <h2 className="display-hero text-[64px] font-medium leading-tight">Bounty posted.</h2>
             <p className="mt-4 text-[18px] text-muted-ink">Agents are scanning. Claim window closes in 2 hours.</p>
             <div className="mt-8 flex justify-center gap-3">
-              <FlButton variant="cobalt" onClick={() => nav("/bounties/bounty-0042")}>View bounty</FlButton>
+              <FlButton variant="cobalt" onClick={() => nav(`/bounties/${confirmedId ?? ""}`)}>View bounty</FlButton>
               <FlButton variant="secondary" onClick={() => nav(dashboardHref)}>Open dashboard</FlButton>
             </div>
           </div>

@@ -1,19 +1,25 @@
-import { useState } from "react";
 import { DashboardLayout } from "@/components/shell/DashboardLayout";
 import { ManifestCard, IdTab, StatusBand, Brackets, MonoLabel, Tag, Monogram } from "@/components/manifest/Manifest";
 import { FlButton } from "@/components/manifest/FlButton";
-import { AGENTS } from "@/data/mock";
+import { useMyAgents, useWithdrawEarnings, useOperatorProfile } from "@/lib/api";
+import { useWalletAuth } from "@/components/auth/WalletAuth";
+import type { Agent } from "@/data/mock";
 
 const EARN_30D = [38, 52, 41, 67, 49, 72, 47, 63, 55, 71, 80, 44, 58, 39, 65, 73, 81, 49, 51, 60, 68, 77, 42, 56, 64, 70, 79, 50, 62, 47];
 
 export default function OperatorEarnings() {
-  const mine = AGENTS.filter((a) => a.operator === "op-blockfoundry");
+  const { address } = useWalletAuth();
+  const { data: agentsData, isLoading: agentsLoading } = useMyAgents(address ?? "");
+  const { data: profileData } = useOperatorProfile(address ?? "");
+  const withdrawMutation = useWithdrawEarnings();
+
+  const mine = (agentsData as Agent[] | undefined) ?? [];
+  const profile = profileData as Record<string, unknown> | undefined;
   const total = mine.reduce((s, a) => s + a.earnings, 0);
   const month = EARN_30D.reduce((s, v) => s + v, 0);
   const peak = Math.max(...EARN_30D);
 
-  const [withdrawing, setWithdrawing] = useState(false);
-  const withdrawable = 1847;
+  const withdrawable = profile?.withdrawable ? Number(profile.withdrawable) : 0;
 
   const withdrawals = [
     { id: "WX-0019", ts: "2026-04-22 14:08", amount: 1200, status: "settled" as const, tx: "0x91A2…77F4" },
@@ -21,6 +27,16 @@ export default function OperatorEarnings() {
     { id: "WX-0017", ts: "2026-04-08 09:11", amount: 2104, status: "settled" as const, tx: "0xDD7E…22A6" },
     { id: "WX-0016", ts: "2026-04-01 16:33", amount: 740, status: "settled" as const, tx: "0xAB31…0044" },
   ];
+
+  if (agentsLoading) {
+    return (
+      <DashboardLayout role="operator" title="Earnings." subtitle="Loading earnings data...">
+        <div className="border-2 border-ink p-12 text-center">
+          <MonoLabel ink>LOADING EARNINGS...</MonoLabel>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout
@@ -44,11 +60,15 @@ export default function OperatorEarnings() {
               variant="cobalt"
               size="lg"
               onClick={() => {
-                setWithdrawing(true);
-                setTimeout(() => setWithdrawing(false), 1600);
+                if (!address || withdrawable <= 0) return;
+                withdrawMutation.mutate({
+                  address: mine[0]?.wallet ?? "",
+                  operatorAddress: address,
+                  amount: String(withdrawable),
+                });
               }}
             >
-              {withdrawing ? "Sending tx…" : "Withdraw all"}
+              {withdrawMutation.isPending ? "Sending tx…" : "Withdraw all"}
             </FlButton>
             <div className="mono-small text-muted-ink">GAS ESTIMATE · 0.00018 ETH</div>
           </div>

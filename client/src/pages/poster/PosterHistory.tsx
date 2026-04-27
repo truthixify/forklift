@@ -1,8 +1,30 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { DashboardLayout } from "@/components/shell/DashboardLayout";
 import { MonoLabel, Tag, PulseDot, ManifestCard, IdTab } from "@/components/manifest/Manifest";
-import { BOUNTIES } from "@/data/mock";
+import { useBounties, usePoster } from "@/lib/api";
+import { useWalletAuth } from "@/components/auth/WalletAuth";
+import type { Bounty } from "@/data/mock";
+
+function toBounty(raw: Record<string, unknown>): Bounty {
+  return {
+    id: (raw.id ?? raw.bountyId ?? "") as string,
+    shortId: (raw.shortId ?? raw.id ?? "") as string,
+    title: (raw.title ?? "") as string,
+    brief: (raw.brief ?? "") as string,
+    template: (raw.template ?? raw.templateId ?? "") as string,
+    kind: (raw.kind ?? raw.deliverableKind ?? "file") as Bounty["kind"],
+    verifier: (raw.verifier ?? raw.verifiers ?? []) as Bounty["verifier"],
+    amount: Number(raw.amount ?? 0),
+    state: (raw.state ?? raw.status ?? "live") as Bounty["state"],
+    poster: (raw.poster ?? raw.posterAddress ?? "") as string,
+    agent: (raw.agent ?? raw.assignedAgent ?? undefined) as string | undefined,
+    claims: Number(raw.claims ?? raw.claimCount ?? 0),
+    deadline: (raw.deadline ?? "") as string,
+    createdAgo: (raw.createdAgo ?? "") as string,
+    tags: (raw.tags ?? []) as string[],
+  };
+}
 
 const STATES = ["paid", "expired", "refunded", "disputed"] as const;
 type HState = (typeof STATES)[number];
@@ -15,8 +37,22 @@ const STATE_LABEL: Record<HState, string> = {
 };
 
 export default function PosterHistory() {
+  const { address } = useWalletAuth();
+  const { data: bountyData, isLoading } = useBounties();
+  const { data: posterData } = usePoster(address ?? "");
   const [filter, setFilter] = useState<HState | "all">("all");
-  const all = BOUNTIES.filter((b) => STATES.includes(b.state as HState));
+
+  const mySettled: Bounty[] = useMemo(() => {
+    const raw = (bountyData as { bounties?: unknown[] })?.bounties;
+    if (!Array.isArray(raw)) return [];
+    const mapped = raw.map((b) => toBounty(b as Record<string, unknown>));
+    const posterId = (posterData as Record<string, unknown>)?.id as string | undefined;
+    return mapped
+      .filter((b) => b.poster === address || b.poster === posterId)
+      .filter((b) => STATES.includes(b.state as HState));
+  }, [bountyData, address, posterData]);
+
+  const all = mySettled;
   const list = filter === "all" ? all : all.filter((b) => b.state === filter);
 
   const counts = STATES.reduce<Record<HState, number>>((acc, s) => {
@@ -37,6 +73,12 @@ export default function PosterHistory() {
       title="History."
       subtitle="Closed bounties — settled, expired, refunded, or disputed. Your full audit trail."
     >
+      {isLoading ? (
+        <div className="border-2 border-dashed border-ink/30 p-12 text-center">
+          <MonoLabel ink className="block">LOADING HISTORY...</MonoLabel>
+        </div>
+      ) : (
+      <>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <div className="border-2 border-ink p-5">
           <MonoLabel ink className="block">SETTLED · USDT OUT</MonoLabel>
@@ -112,6 +154,8 @@ export default function PosterHistory() {
           </table>
         </div>
       </ManifestCard>
+      </>
+      )}
     </DashboardLayout>
   );
 }

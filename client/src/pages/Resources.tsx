@@ -1,8 +1,27 @@
+import { useMemo } from "react";
 import { AppShell } from "@/components/shell/AppShell";
 import { ManifestCard, IdTab, MonoLabel, Tag, Brackets, PulseDot, StatusBand } from "@/components/manifest/Manifest";
 import { FlButton } from "@/components/manifest/FlButton";
-import { RESOURCE_SERVERS } from "@/data/mock";
+import { useResourceCatalog } from "@/lib/api";
 import { useTickingCounter } from "@/hooks/useLiveFeed";
+
+interface ResourceItem {
+  path: string;
+  name: string;
+  price: string;
+  desc: string;
+  sample: string;
+}
+
+function toResource(raw: Record<string, unknown>): ResourceItem {
+  return {
+    path: (raw.path ?? raw.endpoint ?? "") as string,
+    name: (raw.name ?? raw.label ?? "") as string,
+    price: (raw.price ?? raw.pricePerCall ?? "") as string,
+    desc: (raw.desc ?? raw.description ?? "") as string,
+    sample: (raw.sample ?? raw.sampleRequest ?? "") as string,
+  };
+}
 
 // Realistic 24h call volumes per endpoint
 const VOLUMES: Record<string, number> = {
@@ -26,6 +45,16 @@ function EndpointTraffic({ path }: { path: string }) {
 export default function Resources() {
   const totalCalls = useTickingCounter(9938, 1, 8, 2500);
   const totalUsdt = useTickingCounter(284, 0, 1, 6000);
+  const { data, isLoading, isError } = useResourceCatalog();
+
+  const resources: ResourceItem[] = useMemo(() => {
+    const raw = data as Record<string, unknown> | undefined;
+    if (!raw) return [];
+    const catalog = raw.catalog as unknown[] | undefined;
+    const items = catalog ?? (raw.resources as unknown[] | undefined) ?? (Array.isArray(raw) ? raw : []);
+    if (!Array.isArray(items)) return [];
+    return items.map((r) => toResource(r as Record<string, unknown>));
+  }, [data]);
 
   return (
     <AppShell>
@@ -64,7 +93,22 @@ export default function Resources() {
 
       {/* Endpoint catalogue */}
       <section className="max-w-[1280px] mx-auto px-6 pb-12 space-y-6">
-        {RESOURCE_SERVERS.map((r) => (
+        {isLoading && (
+          <div className="text-center py-12">
+            <MonoLabel>LOADING RESOURCES...</MonoLabel>
+          </div>
+        )}
+        {isError && (
+          <div className="text-center py-12">
+            <MonoLabel>FAILED TO LOAD RESOURCES</MonoLabel>
+          </div>
+        )}
+        {!isLoading && !isError && resources.length === 0 && (
+          <div className="text-center py-12">
+            <MonoLabel>NO RESOURCES FOUND</MonoLabel>
+          </div>
+        )}
+        {resources.map((r) => (
           <ManifestCard key={r.path} idTab={<IdTab variant="magenta">x402 · PAYWALLED</IdTab>} formFooter={`RESOURCE · ${r.name.toUpperCase()}`}>
             <div className="grid grid-cols-12 gap-6 p-7 items-center">
               <div className="col-span-12 md:col-span-7">

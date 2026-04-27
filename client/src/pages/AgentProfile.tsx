@@ -1,14 +1,91 @@
+import { useMemo } from "react";
 import { useParams } from "react-router-dom";
 import { AppShell } from "@/components/shell/AppShell";
 import { ManifestCard, IdTab, StatusBand, Brackets, MonoLabel, Tag, Monogram } from "@/components/manifest/Manifest";
 import { FlButton } from "@/components/manifest/FlButton";
-import { AGENTS, BOUNTIES } from "@/data/mock";
+import { useAgent } from "@/lib/api";
 import { BountyRow } from "@/components/manifest/Cards";
+import type { Agent, Bounty } from "@/data/mock";
+
+function toAgent(raw: Record<string, unknown>): Agent {
+  return {
+    id: (raw.id ?? raw.address ?? "") as string,
+    handle: (raw.handle ?? raw.displayName ?? raw.name ?? "") as string,
+    monogram: (raw.monogram ?? ((raw.handle ?? raw.displayName ?? "?") as string).charAt(0).toUpperCase()) as string,
+    wallet: (raw.wallet ?? raw.address ?? "") as string,
+    specializations: (raw.specializations ?? raw.templates ?? []) as string[],
+    paid: Number(raw.paid ?? raw.paidCount ?? 0),
+    rating: Number(raw.rating ?? raw.avgRating ?? 0),
+    earnings: Number(raw.earnings ?? raw.totalEarnings ?? 0),
+    active: (raw.active ?? true) as boolean,
+    probation: (raw.probation ?? false) as boolean | undefined,
+    joined: (raw.joined ?? "") as string,
+    avgTime: (raw.avgTime ?? "—") as string,
+    revisionRate: Number(raw.revisionRate ?? 0),
+    repeatPosters: Number(raw.repeatPosters ?? 0),
+    bio: (raw.bio ?? "") as string,
+    operator: (raw.operator ?? raw.operatorAddress ?? "") as string,
+  };
+}
+
+function toBounty(raw: Record<string, unknown>): Bounty {
+  return {
+    id: (raw.id ?? raw.bountyId ?? "") as string,
+    shortId: (raw.shortId ?? raw.id ?? "") as string,
+    title: (raw.title ?? "") as string,
+    brief: (raw.brief ?? "") as string,
+    template: (raw.template ?? raw.templateId ?? "") as string,
+    kind: (raw.kind ?? raw.deliverableKind ?? "file") as Bounty["kind"],
+    verifier: (raw.verifier ?? raw.verifiers ?? []) as Bounty["verifier"],
+    amount: Number(raw.amount ?? 0),
+    state: (raw.state ?? raw.status ?? "live") as Bounty["state"],
+    poster: (raw.poster ?? raw.posterAddress ?? "") as string,
+    agent: (raw.agent ?? raw.assignedAgent ?? undefined) as string | undefined,
+    claims: Number(raw.claims ?? raw.claimCount ?? 0),
+    deadline: (raw.deadline ?? "") as string,
+    createdAgo: (raw.createdAgo ?? "") as string,
+    tags: (raw.tags ?? []) as string[],
+  };
+}
 
 export default function AgentProfile() {
   const { id } = useParams();
-  const a = AGENTS.find((x) => x.id === id) ?? AGENTS[0];
-  const recent = BOUNTIES.filter((b) => b.agent === a.id).concat(BOUNTIES.slice(0, 4)).slice(0, 6);
+  const { data, isLoading, isError } = useAgent(id ?? "");
+
+  const a: Agent | null = useMemo(() => {
+    const raw = data as Record<string, unknown> | undefined;
+    if (!raw) return null;
+    const agentRaw = (raw.agent ?? raw) as Record<string, unknown>;
+    return toAgent(agentRaw);
+  }, [data]);
+
+  const recent: Bounty[] = useMemo(() => {
+    const raw = data as Record<string, unknown> | undefined;
+    if (!raw) return [];
+    const recentRaw = raw.recentBounties as unknown[] | undefined;
+    if (!Array.isArray(recentRaw)) return [];
+    return recentRaw.slice(0, 6).map((b) => toBounty(b as Record<string, unknown>));
+  }, [data]);
+
+  if (isLoading) {
+    return (
+      <AppShell>
+        <section className="max-w-[1440px] mx-auto px-6 pt-14 pb-12">
+          <div className="text-center py-24"><MonoLabel>LOADING AGENT...</MonoLabel></div>
+        </section>
+      </AppShell>
+    );
+  }
+
+  if (isError || !a) {
+    return (
+      <AppShell>
+        <section className="max-w-[1440px] mx-auto px-6 pt-14 pb-12">
+          <div className="text-center py-24"><MonoLabel>AGENT NOT FOUND</MonoLabel></div>
+        </section>
+      </AppShell>
+    );
+  }
 
   return (
     <AppShell>
