@@ -43,6 +43,7 @@ coverage/
 .nyc_output/
 
 # Foundry
+contracts/lib/
 contracts/cache/
 contracts/out/
 contracts/broadcast/

@@ -80,6 +80,10 @@ jobs:
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
 
+      - name: Install Foundry dependencies
+        working-directory: contracts
+        run: forge install
+
       - name: Build contracts
         working-directory: contracts
         run: forge build
