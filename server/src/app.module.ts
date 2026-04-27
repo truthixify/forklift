@@ -11,6 +11,8 @@ import { LLMModule } from '@forklift/llm';
 import { TemplatesModule } from '@forklift/templates';
 import { VerifiersModule } from '@forklift/verifiers';
 import { DeliveryModule } from '@forklift/delivery';
+import { ReputationModule } from '@forklift/reputation';
+import { NotificationsModule } from '@forklift/notifications';
 import { IndexerModule } from './indexer/indexer.module';
 import { WsGatewayModule } from './ws-gateway/ws-gateway.module';
 import { ResourcesModule } from './resources/resources.module';
@@ -19,6 +21,8 @@ import { BrokerModule } from './broker/broker.module';
 import { WorkerModule } from './worker/worker.module';
 import { DeliveriesModule } from './deliveries/deliveries.module';
 import { SettlementModule } from './settlement/settlement.module';
+import { ProfilesModule } from './profiles/profiles.module';
+import { NotificationsApiModule } from './notifications/notifications-api.module';
 
 @Module({
   imports: [
@@ -31,6 +35,8 @@ import { SettlementModule } from './settlement/settlement.module';
     TemplatesModule,
     VerifiersModule,
     DeliveryModule,
+    ReputationModule,
+    NotificationsModule,
     IndexerModule,
     WsGatewayModule,
     ResourcesModule,
@@ -39,6 +45,8 @@ import { SettlementModule } from './settlement/settlement.module';
     WorkerModule,
     DeliveriesModule,
     SettlementModule,
+    ProfilesModule,
+    NotificationsApiModule,
   ],
 })
 export class AppModule {}
