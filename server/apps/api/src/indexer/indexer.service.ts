@@ -3,6 +3,7 @@
 import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { PublicClient, Transport, Chain, WatchContractEventReturnType } from 'viem';
+import type { Prisma } from '@prisma/client';
 
 import { PrismaService } from '@forklift/database';
 import {
@@ -86,7 +87,7 @@ export class IndexerService implements OnModuleInit, OnModuleDestroy {
           blockNumber: event.blockNumber,
           transactionHash: event.transactionHash,
           logIndex: event.logIndex,
-          data: this.serializeArgs(event.args),
+          data: this.serializeArgs(event.args) as Prisma.InputJsonValue,
         },
       });
 

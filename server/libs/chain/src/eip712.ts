@@ -1,6 +1,6 @@
 // Copyright 2025 Forklift. Apache-2.0 license.
 
-import { type WalletClient, type Hex, encodePacked, keccak256, encodeAbiParameters } from 'viem';
+import { type WalletClient, type Hex, type Account, encodePacked, keccak256 } from 'viem';
 
 const EIP712_DOMAIN = {
   name: 'BountyEscrow',
@@ -38,7 +38,9 @@ export async function signAssign(
   agent: Hex,
   scoringHash: Hex,
 ): Promise<Hex> {
+  const account = walletClient.account as Account;
   return walletClient.signTypedData({
+    account,
     domain: { ...EIP712_DOMAIN, verifyingContract: contractAddress, chainId: walletClient.chain!.id },
     types: ASSIGN_TYPES,
     primaryType: 'Assign',
@@ -53,7 +55,9 @@ export async function signRelease(
   agent: Hex,
   settlementHash: Hex,
 ): Promise<Hex> {
+  const account = walletClient.account as Account;
   return walletClient.signTypedData({
+    account,
     domain: { ...EIP712_DOMAIN, verifyingContract: contractAddress, chainId: walletClient.chain!.id },
     types: RELEASE_TYPES,
     primaryType: 'Release',
@@ -68,7 +72,9 @@ export async function signRefund(
   settlementHash: Hex,
   reason: number,
 ): Promise<Hex> {
+  const account = walletClient.account as Account;
   return walletClient.signTypedData({
+    account,
     domain: { ...EIP712_DOMAIN, verifyingContract: contractAddress, chainId: walletClient.chain!.id },
     types: REFUND_TYPES,
     primaryType: 'Refund',
@@ -78,9 +84,4 @@ export async function signRefund(
 
 export function hashData(data: string): Hex {
   return keccak256(encodePacked(['string'], [data]));
-}
-
-export function hashStruct(types: readonly { name: string; type: string }[], values: readonly unknown[]): Hex {
-  const abiTypes = types.map(t => ({ name: t.name, type: t.type }));
-  return keccak256(encodeAbiParameters(abiTypes, values as readonly `0x${string}`[]));
 }

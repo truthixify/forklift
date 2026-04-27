@@ -1,6 +1,6 @@
 // Copyright 2025 Forklift. Apache-2.0 license.
 
-import { parseAbiItem, type Log, decodeEventLog } from 'viem';
+import { type Log, decodeEventLog } from 'viem';
 
 import { BOUNTY_ESCROW_ABI } from './abi';
 
