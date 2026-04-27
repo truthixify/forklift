@@ -1,95 +1,71 @@
 // Copyright 2025 Forklift. Apache-2.0 license.
 
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import type { PublicClient, Transport, Chain } from 'viem';
+import { Cron, CronExpression } from '@nestjs/schedule';
 
 import { PrismaService } from '@forklift/database';
-import {
-  createKiteWsClient,
-  createKitePublicClient,
-  BOUNTY_ESCROW_ABI,
-  parseEscrowLog,
-} from '@forklift/chain';
+import { SubgraphClient, type SubgraphBountyCreated } from '@forklift/chain';
 import { ClaimService } from './claim.service';
 import { DEMO_PROFILES } from './worker-profile';
 
 @Injectable()
 export class WorkerEventHandler implements OnModuleInit {
   private readonly logger = new Logger(WorkerEventHandler.name);
+  private lastCheckedTimestamp = 0;
+  private readonly processedBounties = new Set<string>();
 
   constructor(
     private readonly claimService: ClaimService,
     private readonly prisma: PrismaService,
-    private readonly config: ConfigService,
+    private readonly subgraph: SubgraphClient,
   ) {}
 
   onModuleInit() {
-    const escrowAddress = this.config.get<string>('BOUNTY_ESCROW_ADDRESS');
-    if (!escrowAddress) {
-      this.logger.warn('BOUNTY_ESCROW_ADDRESS not set; worker event handler disabled');
-      return;
-    }
-
-    this.watchBountyCreated(escrowAddress as `0x${string}`);
+    this.lastCheckedTimestamp = Math.floor(Date.now() / 1000) - 3600;
+    this.logger.log('Worker polling subgraph for new bounties');
   }
 
-  private watchBountyCreated(address: `0x${string}`) {
-    let client: PublicClient<Transport, Chain>;
-    try {
-      client = createKiteWsClient();
-    } catch {
-      this.logger.warn('WS failed for worker, falling back to HTTP');
-      client = createKitePublicClient();
+  @Cron(CronExpression.EVERY_10_SECONDS)
+  async pollForNewBounties() {
+    const bounties = await this.subgraph.getRecentBountyCreateds(this.lastCheckedTimestamp);
+
+    for (const bounty of bounties) {
+      if (this.processedBounties.has(bounty.bountyId)) continue;
+      this.processedBounties.add(bounty.bountyId);
+
+      const ts = Number(bounty.blockTimestamp);
+      if (ts > this.lastCheckedTimestamp) {
+        this.lastCheckedTimestamp = ts;
+      }
+
+      await this.handleBountyCreated(bounty);
     }
-
-    client.watchContractEvent({
-      address,
-      abi: BOUNTY_ESCROW_ABI,
-      eventName: 'BountyCreated',
-      onLogs: (logs) => {
-        for (const log of logs) {
-          const parsed = parseEscrowLog(log);
-          if (parsed?.eventName === 'BountyCreated') {
-            void this.handleBountyCreated(parsed.args as Record<string, unknown>);
-          }
-        }
-      },
-      onError: (error) => {
-        this.logger.error('Worker event watcher error', error);
-      },
-    });
-
-    this.logger.log('Worker watching for BountyCreated events');
   }
 
-  private async handleBountyCreated(args: Record<string, unknown>) {
-    const bountyId = args['bountyId'] as string;
-    const amount = String(args['amountUSDT'] ?? '0');
-
+  private async handleBountyCreated(event: SubgraphBountyCreated) {
     const signature = await this.prisma.bountySignature.findFirst({
-      where: { bountyId },
+      where: { bountyId: event.bountyId },
     });
 
     const bountyInfo = {
-      bountyId,
+      bountyId: event.bountyId,
       title: signature?.title ?? 'Unknown bounty',
       description: signature?.description ?? '',
       templateId: signature?.templateId ?? null,
       deliverableKind: this.extractDeliverableKind(signature?.deliverableSchema),
-      amount,
+      amount: event.amountUSDT,
     };
 
     for (const profile of DEMO_PROFILES) {
       if (this.claimService.shouldClaim(profile, bountyInfo)) {
-        this.logger.log(`${profile.displayName} claiming bounty ${bountyId}`);
+        this.logger.log(`${profile.displayName} claiming bounty ${event.bountyId}`);
         try {
           const proposal = await this.claimService.generateProposal(profile, bountyInfo);
           this.logger.log(
             `${profile.displayName} proposal: "${proposal.proposalText.slice(0, 80)}..." (ETA: ${proposal.etaMinutes}m)`,
           );
         } catch (error) {
-          this.logger.error(`${profile.displayName} failed to claim ${bountyId}`, error);
+          this.logger.error(`${profile.displayName} failed to claim ${event.bountyId}`, error);
         }
       }
     }

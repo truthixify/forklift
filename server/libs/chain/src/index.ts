@@ -1,7 +1,7 @@
 // Copyright 2025 Forklift. Apache-2.0 license.
 
 export { ChainModule } from './chain.module';
-export { SubgraphClient } from './subgraph.client';
+export { SubgraphClient, type SubgraphBountyCreated, type SubgraphEvent } from './subgraph.client';
 export {
   createKitePublicClient,
   createKiteWsClient,
