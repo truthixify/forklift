@@ -33,7 +33,7 @@ export class WorkerEventHandler implements OnModuleInit {
       if (this.processedBounties.has(bounty.bountyId)) continue;
       this.processedBounties.add(bounty.bountyId);
 
-      const ts = Number(bounty.blockTimestamp);
+      const ts = Number(bounty.timestamp_);
       if (ts > this.lastCheckedTimestamp) {
         this.lastCheckedTimestamp = ts;
       }

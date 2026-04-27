@@ -29,7 +29,7 @@ export class IndexerService implements OnModuleInit {
     const events = await this.subgraph.getRecentBountyCreateds(this.lastPolledTimestamp);
 
     for (const event of events) {
-      const ts = Number(event.blockTimestamp);
+      const ts = Number(event.timestamp_);
       if (ts > this.lastPolledTimestamp) {
         this.lastPolledTimestamp = ts;
       }
@@ -38,7 +38,7 @@ export class IndexerService implements OnModuleInit {
         await this.prisma.indexedEvent.upsert({
           where: {
             transactionHash_logIndex: {
-              transactionHash: event.transactionHash,
+              transactionHash: event.transactionHash_,
               logIndex: 0,
             },
           },
@@ -46,8 +46,8 @@ export class IndexerService implements OnModuleInit {
           create: {
             eventName: 'BountyCreated',
             bountyId: event.bountyId,
-            blockNumber: BigInt(event.blockNumber),
-            transactionHash: event.transactionHash,
+            blockNumber: BigInt(event.block_number),
+            transactionHash: event.transactionHash_,
             logIndex: 0,
             data: {
               poster: event.poster,
@@ -67,8 +67,8 @@ export class IndexerService implements OnModuleInit {
             feeUSDT: event.feeUSDT,
             deliveryDeadline: event.deliveryDeadline,
           },
-          blockNumber: event.blockNumber,
-          transactionHash: event.transactionHash,
+          blockNumber: event.block_number,
+          transactionHash: event.transactionHash_,
           timestamp: Date.now(),
         });
 

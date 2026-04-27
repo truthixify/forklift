@@ -3,12 +3,13 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
+// Goldsky instant subgraph uses: block_number, timestamp_, transactionHash_
 export interface SubgraphEvent {
   id: string;
   bountyId: string;
-  blockNumber: string;
-  blockTimestamp: string;
-  transactionHash: string;
+  block_number: string;
+  timestamp_: string;
+  transactionHash_: string;
   [key: string]: unknown;
 }
 
@@ -58,9 +59,9 @@ export class SubgraphClient {
     const result = await this.query<{ bountyCreateds: SubgraphBountyCreated[] }>(`{
       bountyCreateds(
         first: ${first},
-        orderBy: blockTimestamp,
+        orderBy: timestamp_,
         orderDirection: desc,
-        where: { blockTimestamp_gt: "${sinceTimestamp}" }
+        where: { timestamp__gt: "${sinceTimestamp}" }
       ) {
         id
         bountyId
@@ -70,9 +71,9 @@ export class SubgraphClient {
         deliverableSchemaHash
         verifierConfigHash
         deliveryDeadline
-        blockNumber
-        blockTimestamp
-        transactionHash
+        block_number
+        timestamp_
+        transactionHash_
       }
     }`);
     return result?.bountyCreateds ?? [];
@@ -82,15 +83,15 @@ export class SubgraphClient {
     const result = await this.query<Record<string, SubgraphEvent[]>>(`{
       ${entityName}(
         first: ${first},
-        orderBy: blockTimestamp,
+        orderBy: timestamp_,
         orderDirection: desc,
-        where: { blockTimestamp_gt: "${sinceTimestamp}" }
+        where: { timestamp__gt: "${sinceTimestamp}" }
       ) {
         id
         bountyId
-        blockNumber
-        blockTimestamp
-        transactionHash
+        block_number
+        timestamp_
+        transactionHash_
       }
     }`);
     return result?.[entityName] ?? [];
