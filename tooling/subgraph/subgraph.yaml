@@ -1,0 +1,50 @@
+specVersion: 0.0.5
+description: Forklift BountyEscrow indexer on Kite
+schema:
+  file: ./schema.graphql
+dataSources:
+  - kind: ethereum/contract
+    name: BountyEscrow
+    network: kite-testnet
+    source:
+      address: "0x0000000000000000000000000000000000000000" # Replace after deploy
+      abi: BountyEscrow
+      startBlock: 0 # Replace after deploy
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - Bounty
+        - Claim
+        - Delivery
+        - Payment
+        - Refund
+        - ReputationUpdate
+      abis:
+        - name: BountyEscrow
+          file: ../../contracts/out/BountyEscrow.sol/BountyEscrow.json
+      eventHandlers:
+        - event: BountyCreated(indexed bytes32,indexed address,uint256,uint256,bytes32,bytes32,uint64)
+          handler: handleBountyCreated
+        - event: ClaimSubmitted(indexed bytes32,indexed address,bytes32,uint8[])
+          handler: handleClaimSubmitted
+        - event: ClaimWithdrawn(indexed bytes32,indexed address,uint8)
+          handler: handleClaimWithdrawn
+        - event: BountyAssigned(indexed bytes32,indexed address,address[],bytes32,uint64)
+          handler: handleBountyAssigned
+        - event: DeliverySubmitted(indexed bytes32,indexed address,bytes32)
+          handler: handleDeliverySubmitted
+        - event: BountyPaid(indexed bytes32,indexed address,uint256,uint256,uint256)
+          handler: handleBountyPaid
+        - event: BountyRefunded(indexed bytes32,indexed address,uint256,uint8)
+          handler: handleBountyRefunded
+        - event: BountyExpired(indexed bytes32)
+          handler: handleBountyExpired
+        - event: BountyCancelled(indexed bytes32)
+          handler: handleBountyCancelled
+        - event: ClaimGhosted(indexed bytes32,indexed address)
+          handler: handleClaimGhosted
+        - event: ReputationUpdated(indexed address,indexed bytes32,uint8,bytes32)
+          handler: handleReputationUpdated
+      file: ./src/mapping.ts

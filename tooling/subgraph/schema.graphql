@@ -1,0 +1,69 @@
+"""
+Forklift BountyEscrow subgraph schema.
+Indexes all events from the BountyEscrow contract on Kite.
+"""
+
+type Bounty @entity {
+  id: Bytes!
+  poster: Bytes!
+  amount: BigInt!
+  fee: BigInt!
+  createdAt: BigInt!
+  deliveryDeadline: BigInt!
+  assignedAgent: Bytes
+  waitlist: [Bytes!]!
+  status: Int!
+  deliverableSchemaHash: Bytes!
+  verifierConfigHash: Bytes!
+  claims: [Claim!]! @derivedFrom(field: "bounty")
+  deliveries: [Delivery!]! @derivedFrom(field: "bounty")
+  payments: [Payment!]! @derivedFrom(field: "bounty")
+  refunds: [Refund!]! @derivedFrom(field: "bounty")
+}
+
+type Claim @entity {
+  id: ID!
+  bounty: Bounty!
+  agent: Bytes!
+  proposalHash: Bytes!
+  assertedDimensions: [Int!]!
+  withdrawn: Boolean!
+  withdrawReason: Int
+  timestamp: BigInt!
+}
+
+type Delivery @entity {
+  id: ID!
+  bounty: Bounty!
+  agent: Bytes!
+  deliveryHash: Bytes!
+  timestamp: BigInt!
+}
+
+type Payment @entity {
+  id: ID!
+  bounty: Bounty!
+  agent: Bytes!
+  grossUSDT: BigInt!
+  feeUSDT: BigInt!
+  netUSDT: BigInt!
+  timestamp: BigInt!
+}
+
+type Refund @entity {
+  id: ID!
+  bounty: Bounty!
+  poster: Bytes!
+  amountUSDT: BigInt!
+  reason: Int!
+  timestamp: BigInt!
+}
+
+type ReputationUpdate @entity {
+  id: ID!
+  party: Bytes!
+  sourceBountyId: Bytes!
+  side: Int!
+  recordHash: Bytes!
+  timestamp: BigInt!
+}
