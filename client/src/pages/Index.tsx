@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ArrowRight, ArrowUpRight, Plus } from "lucide-react";
 import { AppShell } from "@/components/shell/AppShell";
@@ -6,8 +7,71 @@ import { Marquee } from "@/components/shell/Marquee";
 import { ManifestCard, IdTab, StatusBand, Brackets, MonoLabel, Tag, PulseDot, Monogram, FormFooter } from "@/components/manifest/Manifest";
 import { FlButton } from "@/components/manifest/FlButton";
 import { ForkliftGlyph } from "@/components/brand/Logo";
-import { BOUNTIES, TEMPLATES } from "@/data/mock";
-import { useLiveFeed, useTickingCounter } from "@/hooks/useLiveFeed";
+import { useBounties, useTemplates } from "@/lib/api";
+import { useRealFeed } from "@/hooks/useRealFeed";
+import { useTickingCounter } from "@/hooks/useLiveFeed";
+import type { Bounty } from "@/data/mock";
+
+interface TemplateItem {
+  id: string;
+  name: string;
+  category: string;
+  deliverable: string;
+  verifier: string;
+  price: string;
+}
+
+function toTemplate(raw: Record<string, unknown>): TemplateItem {
+  return {
+    id: (raw.id ?? "") as string,
+    name: (raw.name ?? raw.label ?? "") as string,
+    category: (raw.category ?? "OPEN") as string,
+    deliverable: (raw.deliverable ?? raw.deliverableDesc ?? "") as string,
+    verifier: (raw.verifier ?? raw.verifierType ?? "judge") as string,
+    price: (raw.price ?? raw.priceRange ?? "any") as string,
+  };
+}
+
+function toBounty(raw: Record<string, unknown>): Bounty {
+  return {
+    id: (raw.id ?? raw.bountyId ?? "") as string,
+    shortId: (raw.shortId ?? raw.id ?? "") as string,
+    title: (raw.title ?? "") as string,
+    brief: (raw.brief ?? "") as string,
+    template: (raw.template ?? raw.templateId ?? "") as string,
+    kind: (raw.kind ?? raw.deliverableKind ?? "file") as Bounty["kind"],
+    verifier: (raw.verifier ?? raw.verifiers ?? []) as Bounty["verifier"],
+    amount: Number(raw.amount ?? 0),
+    state: (raw.state ?? raw.status ?? "live") as Bounty["state"],
+    poster: (raw.poster ?? raw.posterAddress ?? "") as string,
+    agent: (raw.agent ?? raw.assignedAgent ?? undefined) as string | undefined,
+    claims: Number(raw.claims ?? raw.claimCount ?? 0),
+    deadline: (raw.deadline ?? "") as string,
+    createdAgo: (raw.createdAgo ?? "") as string,
+    tags: (raw.tags ?? []) as string[],
+  };
+}
+
+interface LiveEventUI {
+  id: string;
+  ts: string;
+  kind: string;
+  monogram: string;
+  actor: string;
+  body: string;
+  amount?: number;
+}
+
+function feedEventToUI(e: { type: string; bountyId?: string; data?: Record<string, unknown>; timestamp: number }, i: number): LiveEventUI {
+  const d = new Date(e.timestamp);
+  const ts = `${String(d.getUTCHours()).padStart(2, "0")}:${String(d.getUTCMinutes()).padStart(2, "0")} UTC`;
+  const kind = e.type ?? "posted";
+  const actor = (e.data?.actor as string) ?? (e.data?.agentName as string) ?? (e.data?.posterAddress as string) ?? "System";
+  const monogram = actor.charAt(0).toUpperCase();
+  const body = (e.data?.message as string) ?? (e.data?.body as string) ?? `${kind} ${e.bountyId ?? ""}`.trim();
+  const amount = e.data?.amount != null ? Number(e.data.amount) : undefined;
+  return { id: `feed-${e.timestamp}-${i}`, ts, kind, monogram, actor, body, amount };
+}
 
 const SUB_COMPARISON = [
  { name: "Midjourney", was: "$30/mo", now: "$2", once: "for one logo" },
@@ -37,7 +101,27 @@ const FAQ = [
 ];
 
 export default function Index() {
-  const liveEvents = useLiveFeed(3800);
+  const { data: bountyData } = useBounties();
+  const { data: templateData } = useTemplates();
+  const { events: feedEvents } = useRealFeed();
+
+  const bounties: Bounty[] = useMemo(() => {
+    const raw = (bountyData as { bounties?: unknown[] })?.bounties;
+    if (!Array.isArray(raw)) return [];
+    return raw.map((b) => toBounty(b as Record<string, unknown>));
+  }, [bountyData]);
+
+  const templates: TemplateItem[] = useMemo(() => {
+    const raw = (templateData as { templates?: unknown[] })?.templates;
+    if (!Array.isArray(raw)) return [];
+    return raw.map((t) => toTemplate(t as Record<string, unknown>));
+  }, [templateData]);
+
+  const liveEvents: LiveEventUI[] = useMemo(
+    () => feedEvents.slice(0, 8).map(feedEventToUI),
+    [feedEvents],
+  );
+
   const kpiBounties = useTickingCounter(47, 0, 1, 6000);
   const kpiUsdt = useTickingCounter(812, 1, 8, 4500);
   const kpiAgents = useTickingCounter(28, 0, 1, 12000);
@@ -201,7 +285,7 @@ export default function Index() {
           </Link>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {TEMPLATES.slice(0, 6).map((t) => (
+          {templates.slice(0, 6).map((t) => (
             <Link to="/templates" key={t.id}>
               <ManifestCard idTab={<IdTab variant="cobalt">TEMPLATE · {t.category}</IdTab>}>
                 <div className="p-6 pt-8 hover:bg-ink hover:text-paper transition-none group">
@@ -242,7 +326,7 @@ export default function Index() {
                 <PulseDot state="live" /> LIVE EVENTS · LAST 14 MINUTES
               </div>
               <ul className="divide-y divide-hairline">
-                {liveEvents.slice(0, 8).map((e, i) => {
+                {liveEvents.map((e, i) => {
                   const isPaid = e.kind === "paid";
                   return (
                     <li key={e.id} className={`flex items-center gap-4 px-5 py-3 ${isPaid ? "stamp-paid" : ""} ${i === 0 ? "animate-hivis-sweep" : ""}`}>
@@ -380,10 +464,10 @@ export default function Index() {
             <FlButton variant="secondary" size="lg" onClick={goDeploy}>Deploy an agent</FlButton>
           </div>
           <div className="mt-12 flex items-center justify-center gap-3">
-            {BOUNTIES.slice(0, 4).map((b) => (
+            {bounties.slice(0, 4).map((b) => (
               <Tag key={b.id} variant="default">{b.template}</Tag>
             ))}
-            <Tag variant="default">+ 8 MORE</Tag>
+            <Tag variant="default">+ {Math.max(0, bounties.length - 4)} MORE</Tag>
           </div>
         </div>
       </section>

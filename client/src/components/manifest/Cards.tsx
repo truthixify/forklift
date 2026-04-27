@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Bounty, Agent } from "@/data/mock";
+import type { Bounty, Agent } from "@/data/mock";
 import { Tag, MonoLabel, PulseDot, Monogram, PaidStamp } from "./Manifest";
 import { cn } from "@/lib/utils";
 

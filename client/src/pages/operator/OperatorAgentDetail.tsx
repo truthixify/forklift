@@ -5,14 +5,63 @@ import { ManifestCard, IdTab, StatusBand, MonoLabel, Tag, Monogram, Brackets } f
 import { FlButton } from "@/components/manifest/FlButton";
 import { FlInput } from "@/components/manifest/FlInput";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
-import { AGENTS, BOUNTIES } from "@/data/mock";
+import { useAgent } from "@/lib/api";
 import { BountyRow } from "@/components/manifest/Cards";
 import { ArrowLeft } from "lucide-react";
+import type { Agent, Bounty } from "@/data/mock";
+
+function toAgent(raw: Record<string, unknown>): Agent {
+  return {
+    id: (raw.id ?? raw.address ?? "") as string,
+    handle: (raw.handle ?? raw.displayName ?? raw.name ?? "") as string,
+    monogram: (raw.monogram ?? ((raw.handle ?? raw.displayName ?? "?") as string).charAt(0).toUpperCase()) as string,
+    wallet: (raw.wallet ?? raw.address ?? "") as string,
+    specializations: (raw.specializations ?? raw.templates ?? []) as string[],
+    paid: Number(raw.paid ?? raw.paidCount ?? 0),
+    rating: Number(raw.rating ?? raw.avgRating ?? 0),
+    earnings: Number(raw.earnings ?? raw.totalEarnings ?? 0),
+    active: (raw.active ?? true) as boolean,
+    probation: (raw.probation ?? false) as boolean | undefined,
+    joined: (raw.joined ?? "") as string,
+    avgTime: (raw.avgTime ?? "—") as string,
+    revisionRate: Number(raw.revisionRate ?? 0),
+    repeatPosters: Number(raw.repeatPosters ?? 0),
+    bio: (raw.bio ?? "") as string,
+    operator: (raw.operator ?? raw.operatorAddress ?? "") as string,
+  };
+}
+
+function toBounty(raw: Record<string, unknown>): Bounty {
+  return {
+    id: (raw.id ?? raw.bountyId ?? "") as string,
+    shortId: (raw.shortId ?? raw.id ?? "") as string,
+    title: (raw.title ?? "") as string,
+    brief: (raw.brief ?? "") as string,
+    template: (raw.template ?? raw.templateId ?? "") as string,
+    kind: (raw.kind ?? raw.deliverableKind ?? "file") as Bounty["kind"],
+    verifier: (raw.verifier ?? raw.verifiers ?? []) as Bounty["verifier"],
+    amount: Number(raw.amount ?? 0),
+    state: (raw.state ?? raw.status ?? "live") as Bounty["state"],
+    poster: (raw.poster ?? raw.posterAddress ?? "") as string,
+    agent: (raw.agent ?? raw.assignedAgent ?? undefined) as string | undefined,
+    claims: Number(raw.claims ?? raw.claimCount ?? 0),
+    deadline: (raw.deadline ?? "") as string,
+    createdAgo: (raw.createdAgo ?? "") as string,
+    tags: (raw.tags ?? []) as string[],
+  };
+}
 
 export default function OperatorAgentDetail() {
   const { id } = useParams();
   const nav = useNavigate();
-  const agent = AGENTS.find((a) => a.id === id);
+  const { data, isLoading, isError } = useAgent(id ?? "");
+
+  const agent: Agent | null = useMemo(() => {
+    const raw = data as Record<string, unknown> | undefined;
+    if (!raw) return null;
+    const agentRaw = (raw.agent ?? raw) as Record<string, unknown>;
+    return toAgent(agentRaw);
+  }, [data]);
 
   const [active, setActive] = useState(agent?.active ?? true);
   const [perTask, setPerTask] = useState("2.50");
@@ -21,7 +70,6 @@ export default function OperatorAgentDetail() {
   const [draftPerTask, setDraftPerTask] = useState(perTask);
   const [draftDaily, setDraftDaily] = useState(daily);
 
-  // x402 agent wallet balance (mock)
   const [balance, setBalance] = useState(agent ? Math.max(0.5, (agent.rating ?? 4) * 1.4) : 0);
   const [fundOpen, setFundOpen] = useState(false);
   const [fundAmount, setFundAmount] = useState("25.00");
@@ -29,12 +77,23 @@ export default function OperatorAgentDetail() {
   const [withdrawAmount, setWithdrawAmount] = useState("");
   const [withdrawSource, setWithdrawSource] = useState<"earnings" | "balance">("earnings");
 
-  const recent = useMemo(() => {
-    if (!agent) return [];
-    return BOUNTIES.filter((b) => b.agent === agent.id).concat(BOUNTIES.slice(0, 3)).slice(0, 5);
-  }, [agent]);
+  const recent: Bounty[] = useMemo(() => {
+    const raw = data as Record<string, unknown> | undefined;
+    if (!raw) return [];
+    const recentRaw = raw.recentBounties as unknown[] | undefined;
+    if (!Array.isArray(recentRaw)) return [];
+    return recentRaw.slice(0, 5).map((b) => toBounty(b as Record<string, unknown>));
+  }, [data]);
 
-  if (!agent) {
+  if (isLoading) {
+    return (
+      <DashboardLayout role="operator" title="Loading..." subtitle="Fetching agent details.">
+        <MonoLabel>LOADING AGENT...</MonoLabel>
+      </DashboardLayout>
+    );
+  }
+
+  if (isError || !agent) {
     return (
       <DashboardLayout role="operator" title="Agent not found." subtitle="That agent does not exist or is not in your fleet.">
         <Link to="/dashboard/operator/agents"><FlButton variant="cobalt">← Back to fleet</FlButton></Link>
