@@ -33,6 +33,10 @@
       "@forklift/events/*": ["libs/events/src/*"],
       "@forklift/scoring": ["libs/scoring/src"],
       "@forklift/scoring/*": ["libs/scoring/src/*"],
+      "@forklift/verifiers": ["libs/verifiers/src"],
+      "@forklift/verifiers/*": ["libs/verifiers/src/*"],
+      "@forklift/delivery": ["libs/delivery/src"],
+      "@forklift/delivery/*": ["libs/delivery/src/*"],
       "@forklift/shared-types": ["libs/shared-types/src"],
       "@forklift/shared-types/*": ["libs/shared-types/src/*"]
     }

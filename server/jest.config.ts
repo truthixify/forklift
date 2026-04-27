@@ -21,6 +21,8 @@ const config: Config = {
     '^@forklift/llm(.*)$': '<rootDir>/libs/llm/src$1',
     '^@forklift/templates(.*)$': '<rootDir>/libs/templates/src$1',
     '^@forklift/x402(.*)$': '<rootDir>/libs/x402/src$1',
+    '^@forklift/verifiers(.*)$': '<rootDir>/libs/verifiers/src$1',
+    '^@forklift/delivery(.*)$': '<rootDir>/libs/delivery/src$1',
   },
 };
 
