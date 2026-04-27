@@ -5,14 +5,19 @@ import type { X402PaywallConfig } from './x402.types';
 import type { Request, Response, NextFunction } from 'express';
 
 const config: X402PaywallConfig = {
-  priceUSDT: '250000000000000000',
-  recipientAddress: '0xTREASURY',
-  usdtAddress: '0xUSDT',
-  chainId: 2368,
+  payTo: '0xTREASURY',
+  asset: '0xUSDT',
+  network: 'kite-testnet',
+  merchantName: 'test-service',
+  maxTimeoutSeconds: 300,
 };
 
-function mockReq(headers: Record<string, string> = {}): Request {
-  return { headers, originalUrl: '/resources/inference' } as unknown as Request;
+function mockReq(headers: Record<string, string> = {}, price = '250000000000000000'): Request {
+  return {
+    headers,
+    originalUrl: '/resources/inference',
+    x402Price: price,
+  } as unknown as Request;
 }
 
 function mockRes() {
@@ -38,7 +43,7 @@ describe('X402PaywallMiddleware', () => {
     middleware = new X402PaywallMiddleware(config);
   });
 
-  it('returns 402 with payment requirements when no payment header', () => {
+  it('returns 402 with x402 payment requirements when no X-Payment header', () => {
     const req = mockReq();
     const res = mockRes();
     const next = jest.fn();
@@ -46,83 +51,24 @@ describe('X402PaywallMiddleware', () => {
     middleware.use(req, res as unknown as Response, next);
 
     expect(res.statusCode).toBe(402);
-    expect((res.body as Record<string, unknown>)['requirements']).toBeDefined();
-    const requirements = (res.body as Record<string, Record<string, unknown>>)['requirements'];
-    expect(requirements['paymentAddress']).toBe('0xTREASURY');
-    expect(requirements['amountUSDT']).toBe('250000000000000000');
-    expect(requirements['chainId']).toBe(2368);
+    const body = res.body as Record<string, Record<string, unknown>>;
+    expect(body['paymentRequirements']).toBeDefined();
+    expect(body['paymentRequirements']['scheme']).toBe('gokite-aa');
+    expect(body['paymentRequirements']['network']).toBe('kite-testnet');
+    expect(body['paymentRequirements']['payTo']).toBe('0xTREASURY');
+    expect(body['paymentRequirements']['asset']).toBe('0xUSDT');
+    expect(body['paymentRequirements']['merchantName']).toBe('test-service');
     expect(next).not.toHaveBeenCalled();
   });
 
-  it('returns 400 for invalid payment header', () => {
-    const req = mockReq({ 'x-402-payment': 'not-json' });
-    const res = mockRes();
-    const next = jest.fn();
-
-    middleware.use(req, res as unknown as Response, next);
-
-    expect(res.statusCode).toBe(400);
-    expect(next).not.toHaveBeenCalled();
-  });
-
-  it('returns 402 for insufficient payment', () => {
-    const proof = JSON.stringify({
-      txHash: '0xabc',
-      payerAddress: '0xagent',
-      amountUSDT: '100000000000000000', // 0.1 USDT < 0.25 required
-      nonce: 'test',
-    });
-    const req = mockReq({ 'x-402-payment': proof });
-    const res = mockRes();
-    const next = jest.fn();
-
-    middleware.use(req, res as unknown as Response, next);
-
-    expect(res.statusCode).toBe(402);
-    expect(next).not.toHaveBeenCalled();
-  });
-
-  it('calls next for valid payment', () => {
-    const proof = JSON.stringify({
-      txHash: '0xabc',
-      payerAddress: '0xagent',
-      amountUSDT: '250000000000000000',
-      nonce: 'test',
-    });
-    const req = mockReq({ 'x-402-payment': proof });
-    const res = mockRes();
-    const next = jest.fn();
-
-    middleware.use(req, res as unknown as Response, next);
-
-    expect(next).toHaveBeenCalled();
-  });
-
-  it('calls next for overpayment', () => {
-    const proof = JSON.stringify({
-      txHash: '0xabc',
-      payerAddress: '0xagent',
-      amountUSDT: '500000000000000000', // 0.5 > 0.25 required
-      nonce: 'test',
-    });
-    const req = mockReq({ 'x-402-payment': proof });
-    const res = mockRes();
-    const next = jest.fn();
-
-    middleware.use(req, res as unknown as Response, next);
-
-    expect(next).toHaveBeenCalled();
-  });
-
-  it('includes nonce in requirements', () => {
+  it('includes maxTimeoutSeconds in requirements', () => {
     const req = mockReq();
     const res = mockRes();
     const next: NextFunction = jest.fn();
 
     middleware.use(req, res as unknown as Response, next);
 
-    const requirements = (res.body as Record<string, Record<string, unknown>>)['requirements'];
-    expect(requirements['nonce']).toBeDefined();
-    expect(typeof requirements['nonce']).toBe('string');
+    const body = res.body as Record<string, Record<string, unknown>>;
+    expect(body['paymentRequirements']['maxTimeoutSeconds']).toBe(300);
   });
 });

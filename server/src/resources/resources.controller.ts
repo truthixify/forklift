@@ -3,30 +3,27 @@
 import { Controller, Get, Post, Req, Res, Logger } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
-import { randomUUID } from 'node:crypto';
 import type { Request, Response } from 'express';
 
 import { RESOURCE_CATALOG } from './resource-catalog';
 import { SEEDED_LEADS } from './seed/leads';
 import { SEEDED_RESEARCH } from './seed/research';
-import type { PaymentProof } from '@forklift/x402';
+import {
+  PIEVERSE_FACILITATOR_URL,
+  KITE_TESTNET_USDT,
+  KITE_TESTNET_NETWORK,
+} from '@forklift/x402';
 
 @ApiTags('resources')
 @Controller('resources')
 export class ResourcesController {
   private readonly logger = new Logger(ResourcesController.name);
-  private readonly treasuryAddress: string;
-  private readonly usdtAddress: string;
-  private readonly chainId: number;
+  private readonly payTo: string;
 
   constructor(private readonly config: ConfigService) {
-    this.treasuryAddress =
+    this.payTo =
       this.config.get<string>('PLATFORM_TREASURY_ADDRESS') ??
       '0x33b69cA4EA27Ad2f83AB73cd6bBf635Cf25E5812';
-    this.usdtAddress =
-      this.config.get<string>('KITE_USDT_ADDRESS') ??
-      '0x0fF5393387ad2f9f691FD6Fd28e07E3969e27e63';
-    this.chainId = Number(this.config.get<string>('KITE_CHAIN_ID') ?? '2368');
   }
 
   @Get('catalog')
@@ -35,10 +32,10 @@ export class ResourcesController {
   }
 
   @Post('inference')
-  handleInference(@Req() req: Request, @Res() res: Response) {
-    const price = '250000000000000000';
+  async handleInference(@Req() req: Request, @Res() res: Response) {
+    const price = '250000000000000000'; // 0.25 USDT
 
-    if (!this.verifyPayment(req, res, price)) return;
+    if (!(await this.verifyPayment(req, res, price))) return;
 
     const body = req.body as { prompt?: string } | undefined;
     const prompt = body?.prompt ?? 'default';
@@ -51,7 +48,7 @@ export class ResourcesController {
   }
 
   @Post('dataset/leads')
-  handleLeads(@Req() req: Request, @Res() res: Response) {
+  async handleLeads(@Req() req: Request, @Res() res: Response) {
     const body = req.body as {
       industry?: string;
       role?: string;
@@ -60,13 +57,12 @@ export class ResourcesController {
     } | undefined;
 
     const count = Math.min(body?.limit ?? 10, 50);
-    const pricePerRecord = 10000000000000000n; // 0.01 USDT
+    const pricePerRecord = 10000000000000000n;
     const totalPrice = (pricePerRecord * BigInt(count)).toString();
 
-    if (!this.verifyPayment(req, res, totalPrice)) return;
+    if (!(await this.verifyPayment(req, res, totalPrice))) return;
 
     let leads = SEEDED_LEADS;
-
     if (body?.industry) {
       leads = leads.filter((l) => l.industry.toLowerCase().includes(body.industry!.toLowerCase()));
     }
@@ -85,10 +81,10 @@ export class ResourcesController {
   }
 
   @Post('dataset/research')
-  handleResearch(@Req() req: Request, @Res() res: Response) {
+  async handleResearch(@Req() req: Request, @Res() res: Response) {
     const price = '300000000000000000'; // 0.30 USDT
 
-    if (!this.verifyPayment(req, res, price)) return;
+    if (!(await this.verifyPayment(req, res, price))) return;
 
     const body = req.body as { topic?: string } | undefined;
     const topic = body?.topic?.toLowerCase() ?? '';
@@ -100,7 +96,6 @@ export class ResourcesController {
         r.snippets.some((s) => s.text.toLowerCase().includes(topic)),
       );
     }
-
     if (results.length === 0) {
       results = SEEDED_RESEARCH.slice(0, 3);
     }
@@ -111,37 +106,67 @@ export class ResourcesController {
     });
   }
 
-  private verifyPayment(req: Request, res: Response, requiredAmount: string): boolean {
-    const paymentHeader = req.headers['x-402-payment'] as string | undefined;
+  private async verifyPayment(req: Request, res: Response, maxAmount: string): Promise<boolean> {
+    const paymentHeader = req.headers['x-payment'] as string | undefined;
 
     if (!paymentHeader) {
       res.status(402).json({
-        requirements: {
-          paymentAddress: this.treasuryAddress,
-          amountUSDT: requiredAmount,
-          chainId: this.chainId,
-          usdtAddress: this.usdtAddress,
-          resourceUrl: req.originalUrl,
-          nonce: randomUUID(),
+        paymentRequirements: {
+          scheme: 'gokite-aa',
+          network: KITE_TESTNET_NETWORK,
+          maxAmountRequired: maxAmount,
+          payTo: this.payTo,
+          asset: KITE_TESTNET_USDT,
+          maxTimeoutSeconds: 300,
+          merchantName: 'forklift-resource-server',
         },
       });
       return false;
     }
 
-    let proof: PaymentProof;
+    // Verify via Pieverse facilitator
     try {
-      proof = JSON.parse(paymentHeader) as PaymentProof;
-    } catch {
-      res.status(400).json({ error: 'Invalid X-402-Payment header' });
+      const verifyRes = await fetch(`${PIEVERSE_FACILITATOR_URL}/v2/verify`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          authorization: paymentHeader,
+          network: KITE_TESTNET_NETWORK,
+        }),
+        signal: AbortSignal.timeout(10_000),
+      });
+
+      if (!verifyRes.ok) {
+        this.logger.error(`Payment verify failed: ${verifyRes.status}`);
+        res.status(402).json({ error: 'Payment verification failed' });
+        return false;
+      }
+
+      // Settle on-chain
+      const settleRes = await fetch(`${PIEVERSE_FACILITATOR_URL}/v2/settle`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          authorization: paymentHeader,
+          network: KITE_TESTNET_NETWORK,
+        }),
+        signal: AbortSignal.timeout(15_000),
+      });
+
+      if (!settleRes.ok) {
+        this.logger.error(`Payment settle failed: ${settleRes.status}`);
+        res.status(402).json({ error: 'Payment settlement failed' });
+        return false;
+      }
+
+      const settlement = (await settleRes.json()) as { txHash?: string };
+      this.logger.log(`x402 settled: ${settlement.txHash ?? 'confirmed'} for ${req.originalUrl}`);
+      return true;
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : 'Unknown';
+      this.logger.error(`x402 error: ${msg}`);
+      res.status(500).json({ error: 'Payment processing error' });
       return false;
     }
-
-    if (BigInt(proof.amountUSDT) < BigInt(requiredAmount)) {
-      res.status(402).json({ error: 'Insufficient payment amount' });
-      return false;
-    }
-
-    this.logger.log(`x402 payment: ${proof.amountUSDT} from ${proof.payerAddress} for ${req.originalUrl}`);
-    return true;
   }
 }

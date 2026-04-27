@@ -2,9 +2,10 @@
 
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { execSync } from 'node:child_process';
 
 import { PrismaService } from '@forklift/database';
-import type { PaymentRequirements, PaymentProof } from './x402.types';
+import type { X402ChallengeResponse } from './x402.types';
 
 interface X402RequestOptions {
   url: string;
@@ -17,7 +18,8 @@ interface X402RequestOptions {
 
 interface X402Response<T = unknown> {
   data: T;
-  paymentProof: PaymentProof | null;
+  paid: boolean;
+  txHash: string | null;
 }
 
 @Injectable()
@@ -32,6 +34,7 @@ export class X402Client {
   async request<T = unknown>(options: X402RequestOptions): Promise<X402Response<T>> {
     const { url, method = 'POST', body, headers = {}, agentAddress, bountyId } = options;
 
+    // First request — may get 402
     const response = await fetch(url, {
       method,
       headers: { 'Content-Type': 'application/json', ...headers },
@@ -40,57 +43,89 @@ export class X402Client {
 
     if (response.status !== 402) {
       const data = (await response.json()) as T;
-      return { data, paymentProof: null };
+      return { data, paid: false, txHash: null };
     }
 
-    const challenge = (await response.json()) as { requirements: PaymentRequirements };
-    const requirements = challenge.requirements;
-
+    // Got 402 — extract payment requirements
+    const challenge = (await response.json()) as X402ChallengeResponse;
     this.logger.log(
-      `x402 payment required: ${requirements.amountUSDT} USDT for ${url}`,
+      `x402 payment required: ${challenge.paymentRequirements.maxAmountRequired} for ${url}`,
     );
 
-    const paymentProof = await this.pay(requirements, agentAddress);
+    // Execute payment via kpass CLI (Passport session-based)
+    const result = this.executeViaPassport(url, method, body, headers);
 
-    await this.prisma.x402Payment.create({
-      data: {
-        agentAddress,
-        bountyId,
-        resourceUrl: url,
-        amountUsdt: requirements.amountUSDT,
-        txHash: paymentProof.txHash,
-      },
-    });
+    if (result) {
+      // Record the payment in ledger
+      await this.prisma.x402Payment.create({
+        data: {
+          agentAddress,
+          bountyId,
+          resourceUrl: url,
+          amountUsdt: challenge.paymentRequirements.maxAmountRequired,
+          txHash: result.txHash,
+        },
+      });
 
-    const retryResponse = await fetch(url, {
-      method,
-      headers: {
-        'Content-Type': 'application/json',
-        'X-402-Payment': JSON.stringify(paymentProof),
-        ...headers,
-      },
-      body: body ? JSON.stringify(body) : undefined,
-    });
+      return { data: result.data as T, paid: true, txHash: result.txHash };
+    }
 
-    const data = (await retryResponse.json()) as T;
-    return { data, paymentProof };
+    throw new Error(`x402 payment failed for ${url}`);
   }
 
-  private async pay(
-    requirements: PaymentRequirements,
-    _agentAddress: string,
-  ): Promise<PaymentProof> {
-    // In production: use the agent's AA wallet to send USDT to paymentAddress.
-    // For hackathon: simulate payment with a mock tx hash since we're
-    // calling our own resource server within the same process.
-    const nonce = requirements.nonce;
-    const txHash = `0x${Buffer.from(nonce).toString('hex').padEnd(64, '0')}`;
+  private executeViaPassport(
+    url: string,
+    method: string,
+    body: unknown,
+    headers: Record<string, string>,
+  ): { data: unknown; txHash: string } | null {
+    try {
+      const args = [
+        'kpass agent:session execute',
+        `--url "${url}"`,
+        `--method ${method}`,
+        '--output json',
+        '--no-interactive',
+      ];
 
-    return {
-      txHash,
-      payerAddress: _agentAddress,
-      amountUSDT: requirements.amountUSDT,
-      nonce,
-    };
+      if (body) {
+        args.push(`--body '${JSON.stringify(body)}'`);
+      }
+
+      if (Object.keys(headers).length > 0) {
+        args.push(`--headers '${JSON.stringify(headers)}'`);
+      }
+
+      const output = execSync(args.join(' '), {
+        timeout: 30_000,
+        encoding: 'utf8',
+      });
+
+      const parsed = JSON.parse(output) as {
+        response?: { body?: unknown };
+        payment?: { txHash?: string };
+      };
+
+      return {
+        data: parsed.response?.body ?? parsed,
+        txHash: parsed.payment?.txHash ?? '',
+      };
+    } catch (error) {
+      this.logger.error('kpass execute failed, falling back to direct x402', error);
+      return this.executeDirectX402(url, method, body, headers);
+    }
+  }
+
+
+  private executeDirectX402(
+    _url: string,
+    _method: string,
+    _body: unknown,
+    _headers: Record<string, string>,
+  ): { data: unknown; txHash: string } | null {
+    // Direct x402 requires signing a TransferWithAuthorization
+    // via the agent's session key — handled by kpass in the primary path
+    this.logger.warn('Direct x402 payment not available without kpass');
+    return null;
   }
 }
