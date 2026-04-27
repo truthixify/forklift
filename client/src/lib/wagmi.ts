@@ -13,7 +13,7 @@ export const kiteTestnet = defineChain({
 
 export const wagmiConfig = getDefaultConfig({
   appName: 'Forklift',
-  projectId: import.meta.env.VITE_WC_PROJECT_ID ?? '0x_placeholder',
+  projectId: import.meta.env.VITE_WC_PROJECT_ID ?? 'forklift-dev',
   chains: [kiteTestnet],
   transports: {
     [kiteTestnet.id]: http('https://rpc-testnet.gokite.ai/'),
