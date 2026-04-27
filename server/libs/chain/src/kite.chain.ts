@@ -12,14 +12,14 @@ export const kiteTestnet = defineChain({
   },
   rpcUrls: {
     default: {
-      http: [process.env['KITE_RPC'] ?? 'https://rpc.testnet.gokite.ai'],
-      webSocket: [process.env['KITE_WS'] ?? 'wss://ws.testnet.gokite.ai'],
+      http: [process.env['KITE_RPC'] ?? 'https://rpc-testnet.gokite.ai/'],
+      webSocket: [process.env['KITE_WS'] ?? 'wss://rpc-testnet.gokite.ai/'],
     },
   },
   blockExplorers: {
     default: {
-      name: 'Kite Explorer',
-      url: 'https://explorer.testnet.gokite.ai',
+      name: 'Kitescan',
+      url: 'https://testnet.kitescan.ai',
     },
   },
   testnet: true,
