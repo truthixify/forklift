@@ -3,9 +3,10 @@
 import { Module } from '@nestjs/common';
 
 import { ClaimService } from './claim.service';
+import { WorkerEventHandler } from './worker-event.handler';
 
 @Module({
-  providers: [ClaimService],
+  providers: [ClaimService, WorkerEventHandler],
   exports: [ClaimService],
 })
 export class WorkerModule {}

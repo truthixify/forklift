@@ -24,6 +24,6 @@ export default [
     },
   },
   {
-    ignores: ['dist/', 'node_modules/', '**/*.js', '**/*.mjs', 'jest.config.ts'],
+    ignores: ['dist/', 'node_modules/', '**/*.js', '**/*.mjs', '**/*.spec.ts', 'jest.config.ts'],
   },
 ];
