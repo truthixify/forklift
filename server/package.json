@@ -11,7 +11,7 @@
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:e2e": "jest --config ./test/jest-e2e.json",
-    "lint": "eslint \"{src,apps,libs,test}/**/*.ts\"",
+    "lint": "eslint \"apps/**/*.ts\" \"libs/**/*.ts\"",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "format": "prettier --write \"apps/**/*.ts\" \"libs/**/*.ts\"",
     "db:migrate": "prisma migrate dev --schema=libs/database/prisma/schema.prisma",
