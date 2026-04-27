@@ -1,0 +1,131 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  server-quality:
+    name: Server — Typecheck + Lint + Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: pnpm --filter @forklift/server db:generate
+
+      - name: Typecheck
+        run: pnpm --filter @forklift/server typecheck
+
+      - name: Lint
+        run: pnpm --filter @forklift/server lint
+
+      - name: Test
+        run: pnpm --filter @forklift/server test
+
+      - name: Test with coverage
+        run: pnpm --filter @forklift/server test:cov
+        continue-on-error: true
+
+  client-quality:
+    name: Client — Typecheck + Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm --filter @forklift/client typecheck
+
+      - name: Lint
+        run: pnpm --filter @forklift/client lint
+
+  contracts:
+    name: Contracts — Build + Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+
+      - name: Build contracts
+        working-directory: contracts
+        run: forge build
+
+      - name: Run tests
+        working-directory: contracts
+        run: forge test -vvv
+
+      - name: Run tests with gas report
+        working-directory: contracts
+        run: forge test --gas-report
+        continue-on-error: true
+
+  code-hygiene:
+    name: Code Hygiene
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: No placeholders in source
+        run: |
+          if grep -rn "TODO\|FIXME\|XXX\|HACK\|placeholder\|implement later\|in production we\|for brevity\|not implemented\|TBD" \
+            server/src/ server/libs/ client/src/ contracts/src/ contracts/test/ \
+            --include="*.ts" --include="*.sol" 2>/dev/null; then
+            echo "::error::Found placeholder comments in source code"
+            exit 1
+          fi
+          echo "No placeholders found"
+
+      - name: No escape hatches
+        run: |
+          if grep -rn "@ts-ignore\|@ts-expect-error\|eslint-disable\|\.skip\|\.only\|xit(\|xdescribe(" \
+            server/src/ server/libs/ client/src/ \
+            --include="*.ts" 2>/dev/null; then
+            echo "::error::Found escape hatches in source code"
+            exit 1
+          fi
+          echo "No escape hatches found"
+
+      - name: No secrets in code
+        run: |
+          if grep -rn "PRIVATE_KEY\s*=" \
+            server/src/ server/libs/ client/src/ contracts/src/ \
+            --include="*.ts" --include="*.sol" 2>/dev/null | \
+            grep -v "process.env\|config.get\|envAddress\|vm.env\|\.example\|interface\|type " ; then
+            echo "::error::Possible hardcoded secrets found"
+            exit 1
+          fi
+          echo "No hardcoded secrets found"
