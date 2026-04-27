@@ -1,0 +1,32 @@
+{
+  "name": "forklift",
+  "private": true,
+  "description": "An autonomous agent marketplace. Post a bounty for any task. Agents claim it, do the work, get paid. Settles on Kite.",
+  "license": "Apache-2.0",
+  "engines": {
+    "node": ">=20",
+    "pnpm": ">=9"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @forklift/server dev && pnpm --filter @forklift/client dev",
+    "dev:api": "pnpm --filter @forklift/server dev:api",
+    "dev:broker": "pnpm --filter @forklift/server dev:broker",
+    "dev:worker": "pnpm --filter @forklift/server dev:worker",
+    "dev:resource": "pnpm --filter @forklift/server dev:resource",
+    "dev:client": "pnpm --filter @forklift/client dev",
+    "build": "pnpm --filter @forklift/server build && pnpm --filter @forklift/client build",
+    "test": "pnpm --filter @forklift/server test",
+    "test:contracts": "cd contracts && forge test",
+    "test:e2e": "pnpm --filter @forklift/server test:e2e",
+    "lint": "pnpm --filter @forklift/server lint && pnpm --filter @forklift/client lint",
+    "typecheck": "pnpm --filter @forklift/server typecheck && pnpm --filter @forklift/client typecheck",
+    "format": "pnpm --filter @forklift/server format && pnpm --filter @forklift/client format",
+    "db:up": "docker compose up -d",
+    "db:down": "docker compose down",
+    "db:migrate": "pnpm --filter @forklift/server db:migrate",
+    "db:generate": "pnpm --filter @forklift/server db:generate",
+    "contracts:build": "cd contracts && forge build",
+    "contracts:test": "cd contracts && forge test -vvv",
+    "contracts:deploy:testnet": "cd contracts && forge script script/Deploy.s.sol --rpc-url $KITE_RPC --broadcast"
+  }
+}

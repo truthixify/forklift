@@ -1,0 +1,74 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build output
+dist/
+build/
+out/
+*.tsbuildinfo
+
+# Environment
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+
+# OS
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+logs/
+
+# Testing
+coverage/
+.nyc_output/
+
+# Foundry
+contracts/cache/
+contracts/out/
+contracts/broadcast/
+
+# Prisma
+server/libs/database/prisma/migrations/
+
+# Docker volumes
+.minio-data/
+.pgdata/
+
+# Turborepo / nx
+.turbo/
+.nx/
+
+# Misc
+*.tgz
+*.pid
+*.seed
+*.pid.lock
+.eslintcache
+.prettierignore
+
+# Claude
+.claude/
+
+# Handoff artifacts
+ForkLift-handoff.zip
+design/
