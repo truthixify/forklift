@@ -23,6 +23,8 @@ const config: Config = {
     '^@forklift/x402(.*)$': '<rootDir>/libs/x402/src$1',
     '^@forklift/verifiers(.*)$': '<rootDir>/libs/verifiers/src$1',
     '^@forklift/delivery(.*)$': '<rootDir>/libs/delivery/src$1',
+    '^@forklift/reputation(.*)$': '<rootDir>/libs/reputation/src$1',
+    '^@forklift/notifications(.*)$': '<rootDir>/libs/notifications/src$1',
   },
 };
 

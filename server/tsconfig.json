@@ -37,6 +37,10 @@
       "@forklift/verifiers/*": ["libs/verifiers/src/*"],
       "@forklift/delivery": ["libs/delivery/src"],
       "@forklift/delivery/*": ["libs/delivery/src/*"],
+      "@forklift/reputation": ["libs/reputation/src"],
+      "@forklift/reputation/*": ["libs/reputation/src/*"],
+      "@forklift/notifications": ["libs/notifications/src"],
+      "@forklift/notifications/*": ["libs/notifications/src/*"],
       "@forklift/shared-types": ["libs/shared-types/src"],
       "@forklift/shared-types/*": ["libs/shared-types/src/*"]
     }
