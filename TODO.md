@@ -35,4 +35,4 @@
 
 ## Remaining
 
-- [ ] **GitHub App flow (§22.5):** No installation tracking for OSS bounties. Needs GitHub App registration.
+- [x] **GitHub App flow (§22.5):** `libs/github` with GitHubService — installation tokens via @octokit/auth-app, real PR merge checks via GitHub API, PR creation with labels. github-pr-merged verifier uses live API.

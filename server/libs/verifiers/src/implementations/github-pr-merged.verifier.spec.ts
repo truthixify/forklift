@@ -30,7 +30,7 @@ function makeArgs(overrides: {
 }
 
 describe('GitHubPRMergedVerifier', () => {
-  const verifier = new GitHubPRMergedVerifier();
+  const verifier = new GitHubPRMergedVerifier(null);
 
   it('passes when PR is merged', async () => {
     const result = await verifier.verify(makeArgs({ merged: true }));

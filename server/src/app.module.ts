@@ -12,6 +12,7 @@ import { KiteIdentityModule } from '@forklift/kite-identity';
 import { LLMModule } from '@forklift/llm';
 import { TemplatesModule } from '@forklift/templates';
 import { VerifiersModule } from '@forklift/verifiers';
+import { GitHubModule } from '@forklift/github';
 import { DeliveryModule } from '@forklift/delivery';
 import { ReputationModule } from '@forklift/reputation';
 import { NotificationsModule } from '@forklift/notifications';
@@ -41,6 +42,7 @@ import { FeedModule } from './feed/feed.module';
     LLMModule,
     TemplatesModule,
     VerifiersModule,
+    GitHubModule,
     DeliveryModule,
     ReputationModule,
     NotificationsModule,

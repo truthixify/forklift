@@ -4,6 +4,7 @@ import { Injectable, Logger } from '@nestjs/common';
 
 import type { Verifier, VerifierArgs, VerifierResult } from './verifier.interface';
 import { LLMProviderFactory } from '@forklift/llm';
+import { GitHubService } from '@forklift/github';
 import { SchemaCheckVerifier } from './implementations/schema-check.verifier';
 import { FileCheckVerifier } from './implementations/file-check.verifier';
 import { LLMJudgeVerifier } from './implementations/llm-judge.verifier';
@@ -18,12 +19,12 @@ export class VerifierRegistry {
   private readonly llmFactory: LLMProviderFactory;
   private llmJudgeRegistered = false;
 
-  constructor(llmFactory: LLMProviderFactory) {
+  constructor(llmFactory: LLMProviderFactory, github: GitHubService) {
     this.llmFactory = llmFactory;
 
     this.register(new SchemaCheckVerifier());
     this.register(new FileCheckVerifier());
-    this.register(new GitHubPRMergedVerifier());
+    this.register(new GitHubPRMergedVerifier(github));
     this.register(new WebhookCallbackVerifier());
     this.register(new CompositeVerifier(this));
 

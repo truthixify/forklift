@@ -45,6 +45,8 @@
       "@forklift/kite-identity/*": ["libs/kite-identity/src/*"],
       "@forklift/auth": ["libs/auth/src"],
       "@forklift/auth/*": ["libs/auth/src/*"],
+      "@forklift/github": ["libs/github/src"],
+      "@forklift/github/*": ["libs/github/src/*"],
       "@forklift/shared-types": ["libs/shared-types/src"],
       "@forklift/shared-types/*": ["libs/shared-types/src/*"]
     }

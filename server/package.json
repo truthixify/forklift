@@ -34,6 +34,8 @@
     "@nestjs/schedule": "^5.0.0",
     "@nestjs/swagger": "^11.4.2",
     "@nestjs/websockets": "^11.0.0",
+    "@octokit/auth-app": "^8.2.0",
+    "@octokit/rest": "^22.0.1",
     "@prisma/client": "^6.0.0",
     "@types/cookie-parser": "^1.4.10",
     "@types/jsonwebtoken": "^9.0.10",
