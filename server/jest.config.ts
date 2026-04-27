@@ -17,17 +17,10 @@ const config: Config = {
     '^@forklift/database(.*)$': '<rootDir>/libs/database/src$1',
     '^@forklift/events(.*)$': '<rootDir>/libs/events/src$1',
     '^@forklift/shared-types(.*)$': '<rootDir>/libs/shared-types/src$1',
-    '^@forklift/notifications(.*)$': '<rootDir>/libs/notifications/src$1',
     '^@forklift/scoring(.*)$': '<rootDir>/libs/scoring/src$1',
-    '^@forklift/reputation(.*)$': '<rootDir>/libs/reputation/src$1',
     '^@forklift/llm(.*)$': '<rootDir>/libs/llm/src$1',
-    '^@forklift/verifiers(.*)$': '<rootDir>/libs/verifiers/src$1',
     '^@forklift/templates(.*)$': '<rootDir>/libs/templates/src$1',
-    '^@forklift/delivery(.*)$': '<rootDir>/libs/delivery/src$1',
     '^@forklift/x402(.*)$': '<rootDir>/libs/x402/src$1',
-    '^@forklift/auth(.*)$': '<rootDir>/libs/auth/src$1',
-    '^@forklift/github(.*)$': '<rootDir>/libs/github/src$1',
-    '^@forklift/kite-identity(.*)$': '<rootDir>/libs/kite-identity/src$1',
   },
 };
 
