@@ -7,7 +7,7 @@
     "node": "22.x"
   },
   "scripts": {
-    "build": "prisma generate --schema=libs/database/prisma/schema.prisma && tsc -p tsconfig.json",
+    "build": "prisma generate --schema=libs/database/prisma/schema.prisma && tsc -p tsconfig.json && tsc-alias -p tsconfig.json",
     "dev": "nest start --watch",
     "start": "node dist/src/main",
     "start:prod": "node dist/src/main",
@@ -43,6 +43,7 @@
     "prisma": "^6.0.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
+    "tsc-alias": "^1.8.16",
     "viem": "^2.21.0",
     "ws": "^8.18.0",
     "zod": "^3.23.0"
