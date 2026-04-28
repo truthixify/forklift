@@ -3,6 +3,8 @@ import { Link, useLocation } from "react-router-dom";
 import { Bell, Coins, FileCheck2, AlertTriangle, Sparkles, Wallet, Pause } from "lucide-react";
 import { MonoLabel } from "@/components/manifest/Manifest";
 import { cn } from "@/lib/utils";
+import { useNotifications, useMarkRead } from "@/lib/api";
+import { useWalletAuth } from "@/components/auth/WalletAuth";
 
 type Role = "poster" | "operator";
 type Kind = "claim" | "delivered" | "paid" | "earned" | "cap" | "dispute";
@@ -25,24 +27,54 @@ const META: Record<Kind, { label: string; icon: typeof Bell; tone: string; iconB
   dispute:   { label: "DISPUTE",   icon: AlertTriangle, tone: "border-l-alarm",   iconBox: "bg-alarm text-paper" },
 };
 
-// All activity stays inside the user's dashboard scope.
-const POSTER_ACTIVITY: ActivityItem[] = [
-  { group: "MY BOUNTIES", kind: "claim",     body: "Pixel claimed FL-0042 · Logo design",      ts: "14:08", href: "/dashboard/poster/bounties?id=FL-0042", unread: true },
-  { group: "MY BOUNTIES", kind: "delivered", body: "Press delivered FL-0036 · review pending", ts: "13:48", href: "/dashboard/poster/bounties?id=FL-0036", unread: true },
-  { group: "MY BOUNTIES", kind: "paid",      body: "FL-0039 settled · 8.00 USDT released",     ts: "14:05", href: "/dashboard/poster/history?id=FL-0039" },
-  { group: "MY BOUNTIES", kind: "dispute",   body: "FL-0031 disputed · evidence needed",       ts: "11:02", href: "/dashboard/poster/bounties?id=FL-0031", unread: true },
-];
+interface ApiNotification {
+  id: number;
+  category: string;
+  title: string;
+  body: string;
+  ctaHref: string;
+  unread: boolean;
+  createdAt: string;
+}
 
-const OPERATOR_ACTIVITY: ActivityItem[] = [
-  { group: "MY AGENTS", kind: "claim",     body: "Pixel claimed FL-0042 · Logo design",       ts: "14:08", href: "/dashboard/operator/agents?id=pixel", unread: true },
-  { group: "MY AGENTS", kind: "delivered", body: "Press delivered FL-0036 · awaiting review", ts: "13:48", href: "/dashboard/operator/agents?id=press", unread: true },
-  { group: "MY AGENTS", kind: "earned",    body: "Pixel earned 25 USDT · withdraw available", ts: "14:09", href: "/dashboard/operator/earnings", unread: true },
-  { group: "MY AGENTS", kind: "cap",       body: "Cargo daily cap reached · 50 USDT",         ts: "12:14", href: "/dashboard/operator/agents?id=cargo" },
-  { group: "MY AGENTS", kind: "dispute",   body: "FL-0031 disputed · evidence needed",        ts: "11:02", href: "/dashboard/operator/agents?id=press", unread: true },
-];
+const CATEGORY_TO_KIND: Record<string, Kind> = {
+  claim: "claim",
+  delivered: "delivered",
+  paid: "paid",
+  earned: "earned",
+  cap: "cap",
+  dispute: "dispute",
+  settlement: "paid",
+  delivery: "delivered",
+};
 
-export function getActivityForRole(role: Role): ActivityItem[] {
-  return role === "operator" ? OPERATOR_ACTIVITY : POSTER_ACTIVITY;
+const CATEGORY_TO_GROUP: Record<string, string> = {
+  claim: "MY BOUNTIES",
+  delivered: "MY BOUNTIES",
+  paid: "MY BOUNTIES",
+  earned: "MY AGENTS",
+  cap: "MY AGENTS",
+  dispute: "MY BOUNTIES",
+  settlement: "MY BOUNTIES",
+  delivery: "MY BOUNTIES",
+};
+
+function apiNotificationToItem(n: ApiNotification): ActivityItem {
+  const kind = CATEGORY_TO_KIND[n.category] ?? "claim";
+  const group = CATEGORY_TO_GROUP[n.category] ?? "ACTIVITY";
+  const ts = new Date(n.createdAt).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "UTC" });
+  return {
+    kind,
+    body: n.body || n.title,
+    ts,
+    href: n.ctaHref || "#",
+    unread: n.unread,
+    group,
+  };
+}
+
+export function getActivityForRole(_role: Role): ActivityItem[] {
+  return [];
 }
 
 function groupItems(items: ActivityItem[]) {
@@ -85,12 +117,31 @@ export function ActivityRow({ n, onClick }: { n: ActivityItem; onClick?: () => v
 export function NotificationsBell() {
   const { pathname } = useLocation();
   const role: Role = pathname.startsWith("/dashboard/operator") ? "operator" : "poster";
-  const items = useMemo(() => getActivityForRole(role), [role]);
+  const { address } = useWalletAuth();
+  const { data: notifData, isLoading } = useNotifications(address ?? "", false);
+  const markRead = useMarkRead();
+
+  const items: ActivityItem[] = useMemo(() => {
+    const raw = notifData as { notifications?: ApiNotification[] } | undefined;
+    if (!raw?.notifications || !Array.isArray(raw.notifications)) return [];
+    return raw.notifications.map(apiNotificationToItem);
+  }, [notifData]);
+
   const groups = useMemo(() => groupItems(items), [items]);
-  const unread = items.filter((i) => i.unread).length;
+  const unreadCount = useMemo(() => {
+    const raw = notifData as { unreadCount?: number; notifications?: ApiNotification[] } | undefined;
+    if (typeof raw?.unreadCount === "number") return raw.unreadCount;
+    return items.filter((i) => i.unread).length;
+  }, [notifData, items]);
 
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+
+  const handleMarkAllRead = () => {
+    const raw = notifData as { notifications?: ApiNotification[] } | undefined;
+    if (!raw?.notifications) return;
+    raw.notifications.filter((n) => n.unread).forEach((n) => markRead.mutate(n.id));
+  };
 
   useEffect(() => {
     if (!open) return;
@@ -114,9 +165,9 @@ export function NotificationsBell() {
         className="relative inline-flex items-center justify-center w-10 h-10 border border-ink bg-paper hover:bg-ink hover:text-paper"
       >
         <Bell size={16} strokeWidth={1.75} />
-        {unread > 0 && (
+        {unreadCount > 0 && (
           <span className="absolute -top-1.5 -right-1.5 bg-magenta text-paper mono-small px-1.5 h-4 min-w-[16px] inline-flex items-center justify-center">
-            {unread}
+            {unreadCount}
           </span>
         )}
       </button>
@@ -124,20 +175,26 @@ export function NotificationsBell() {
       {open && (
         <div className="absolute right-0 top-full mt-2 w-[400px] max-w-[calc(100vw-2rem)] bg-paper border-2 border-ink shadow-[6px_6px_0_0_hsl(var(--ink))] z-50 max-h-[70vh] overflow-y-auto">
           <div className="px-5 py-3 border-b-2 border-ink flex items-center justify-between sticky top-0 bg-paper z-10">
-            <MonoLabel ink>INBOX · {unread} NEW</MonoLabel>
-            <button className="mono-small hover:text-cobalt">MARK ALL READ</button>
+            <MonoLabel ink>INBOX · {unreadCount} NEW</MonoLabel>
+            <button onClick={handleMarkAllRead} className="mono-small hover:text-cobalt">MARK ALL READ</button>
           </div>
           <div>
-            {groups.map((g) => (
-              <div key={g.group}>
-                <div className="px-5 pt-3 pb-1.5 mono-label-ink bg-hairline/30 border-b border-hairline">
-                  {g.group}
+            {isLoading ? (
+              <div className="px-5 py-8 text-center mono-small text-muted-ink">LOADING...</div>
+            ) : items.length === 0 ? (
+              <div className="px-5 py-8 text-center mono-small text-muted-ink">NO NOTIFICATIONS</div>
+            ) : (
+              groups.map((g) => (
+                <div key={g.group}>
+                  <div className="px-5 pt-3 pb-1.5 mono-label-ink bg-hairline/30 border-b border-hairline">
+                    {g.group}
+                  </div>
+                  {g.items.map((n, i) => (
+                    <ActivityRow key={i} n={n} onClick={() => setOpen(false)} />
+                  ))}
                 </div>
-                {g.items.map((n, i) => (
-                  <ActivityRow key={i} n={n} onClick={() => setOpen(false)} />
-                ))}
-              </div>
-            ))}
+              ))
+            )}
           </div>
           <div className="px-5 py-3 border-t-2 border-ink sticky bottom-0 bg-paper">
             <Link

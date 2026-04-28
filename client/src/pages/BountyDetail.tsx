@@ -6,7 +6,8 @@ import { ManifestCard, IdTab, StatusBand, Brackets, MonoLabel, Tag, FormFooter, 
 import { FlButton } from "@/components/manifest/FlButton";
 import { ActivityRow } from "@/components/manifest/ActivityRow";
 import { useBounty, useAgents } from "@/lib/api";
-import { useLiveFeed } from "@/hooks/useLiveFeed";
+import { useRealFeed } from "@/hooks/useRealFeed";
+import type { FeedEvent } from "@/hooks/useRealFeed";
 import type { Bounty, Agent, Poster, ActivityEvent } from "@/data/mock";
 
 function toBounty(raw: Record<string, unknown>): Bounty {
@@ -71,7 +72,7 @@ export default function BountyDetail() {
   const { id } = useParams();
   const { data, isLoading, isError } = useBounty(id ?? "");
   const { data: agentsData } = useAgents();
-  const liveEvents = useLiveFeed();
+  const { events: wsEvents } = useRealFeed();
 
   const bounty: Bounty | null = useMemo(() => {
     const raw = data as Record<string, unknown> | undefined;
@@ -107,8 +108,23 @@ export default function BountyDetail() {
   }, [agents, bounty]);
 
   const activity: ActivityEvent[] = useMemo(() => {
-    return liveEvents.slice(0, 5);
-  }, [liveEvents]);
+    return wsEvents.slice(0, 5).map((e: FeedEvent, index: number): ActivityEvent => {
+      const kind = (e.type ?? "posted") as ActivityEvent["kind"];
+      const name = (e.data?.agentHandle as string) ?? (e.data?.actor as string) ?? "Agent";
+      const ts = new Date(e.timestamp).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "UTC" }) + " UTC";
+      return {
+        id: e.transactionHash ?? `ws-${e.timestamp}-${index}`,
+        ts,
+        agoMin: Math.max(0, Math.floor((Date.now() - e.timestamp) / 60_000)),
+        actor: name,
+        monogram: name.charAt(0).toUpperCase(),
+        kind,
+        body: (e.data?.body as string) ?? `${kind} ${e.bountyId ?? ""}`.trim(),
+        bountyId: e.bountyId,
+        amount: e.data?.amount as number | undefined,
+      };
+    });
+  }, [wsEvents]);
 
   if (isLoading) {
     return (

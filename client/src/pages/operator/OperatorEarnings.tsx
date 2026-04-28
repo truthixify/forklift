@@ -1,25 +1,23 @@
 import { DashboardLayout } from "@/components/shell/DashboardLayout";
 import { ManifestCard, IdTab, StatusBand, Brackets, MonoLabel, Tag, Monogram } from "@/components/manifest/Manifest";
 import { FlButton } from "@/components/manifest/FlButton";
-import { useMyAgents, useWithdrawEarnings, useOperatorProfile } from "@/lib/api";
+import { useMyAgents, useWithdrawEarnings, useEarnings } from "@/lib/api";
 import { useWalletAuth } from "@/components/auth/WalletAuth";
 import type { Agent } from "@/data/mock";
-
-const EARN_30D = [38, 52, 41, 67, 49, 72, 47, 63, 55, 71, 80, 44, 58, 39, 65, 73, 81, 49, 51, 60, 68, 77, 42, 56, 64, 70, 79, 50, 62, 47];
 
 export default function OperatorEarnings() {
   const { address } = useWalletAuth();
   const { data: agentsData, isLoading: agentsLoading } = useMyAgents(address ?? "");
-  const { data: profileData } = useOperatorProfile(address ?? "");
+  const { data: earningsData, isLoading: earningsLoading } = useEarnings(address ?? "");
   const withdrawMutation = useWithdrawEarnings();
 
   const mine = (agentsData as Agent[] | undefined) ?? [];
-  const profile = profileData as Record<string, unknown> | undefined;
-  const total = mine.reduce((s, a) => s + a.earnings, 0);
-  const month = EARN_30D.reduce((s, v) => s + v, 0);
-  const peak = Math.max(...EARN_30D);
-
-  const withdrawable = profile?.withdrawable ? Number(profile.withdrawable) : 0;
+  const daily = earningsData?.daily ?? [];
+  const lifetime = earningsData?.lifetime ?? 0;
+  const withdrawable = earningsData?.withdrawable ?? 0;
+  const perAgent = earningsData?.perAgent ?? [];
+  const month = daily.reduce((s, v) => s + v, 0);
+  const peak = daily.length > 0 ? Math.max(...daily) : 0;
 
   const withdrawals = [
     { id: "WX-0019", ts: "2026-04-22 14:08", amount: 1200, status: "settled" as const, tx: "0x91A2…77F4" },
@@ -28,7 +26,7 @@ export default function OperatorEarnings() {
     { id: "WX-0016", ts: "2026-04-01 16:33", amount: 740, status: "settled" as const, tx: "0xAB31…0044" },
   ];
 
-  if (agentsLoading) {
+  if (agentsLoading || earningsLoading) {
     return (
       <DashboardLayout role="operator" title="Earnings." subtitle="Loading earnings data...">
         <div className="border-2 border-ink p-12 text-center">
@@ -79,9 +77,9 @@ export default function OperatorEarnings() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {[
           ["MONTH · IN", `${month} USDT`, "30D ROLLING"],
-          ["LIFETIME · IN", `${total.toFixed(0)} USDT`, "ALL AGENTS"],
+          ["LIFETIME · IN", `${lifetime.toLocaleString()} USDT`, "ALL AGENTS"],
           ["PEAK DAY", `${peak} USDT`, "BEST 24H"],
-          ["AVG / DAY", `${(month / EARN_30D.length).toFixed(0)} USDT`, "30D AVG"],
+          ["AVG / DAY", `${daily.length > 0 ? (month / daily.length).toFixed(0) : 0} USDT`, "30D AVG"],
         ].map(([l, v, s]) => (
           <div key={l} className="border-2 border-ink p-5">
             <MonoLabel ink className="block">{l}</MonoLabel>
@@ -95,7 +93,7 @@ export default function OperatorEarnings() {
       <ManifestCard idTab={<IdTab variant="cobalt">DAILY EARNINGS · 30D</IdTab>} formFooter="USDT · NET OF FEES">
         <div className="p-7">
           <div className="flex items-end gap-1 h-40 border-b border-ink">
-            {EARN_30D.map((v, i) => (
+            {daily.map((v, i) => (
               <div
                 key={i}
                 className={`flex-1 ${v === peak ? "bg-hivis" : "bg-cobalt"}`}
@@ -126,7 +124,8 @@ export default function OperatorEarnings() {
             </thead>
             <tbody>
               {mine.map((a) => {
-                const share = (a.earnings / Math.max(total, 1)) * 100;
+                const agentEarnings = perAgent.find((pa) => pa.address === a.wallet)?.total ?? a.earnings;
+                const share = (agentEarnings / Math.max(lifetime, 1)) * 100;
                 return (
                   <tr key={a.id} className="border-b border-hairline hover:bg-hairline/30">
                     <td className="p-4">
@@ -138,7 +137,7 @@ export default function OperatorEarnings() {
                     <td className="p-4 mono-small text-muted-ink">{a.specializations[0]}</td>
                     <td className="p-4 text-right tabular-nums">{a.paid}</td>
                     <td className="p-4 text-right tabular-nums">{a.rating}★</td>
-                    <td className="p-4 text-right tabular-nums">{a.earnings.toFixed(0)} USDT</td>
+                    <td className="p-4 text-right tabular-nums">{agentEarnings.toFixed(0)} USDT</td>
                     <td className="p-4 text-right">
                       <div className="inline-flex items-center gap-2">
                         <div className="w-20 h-2 bg-paper border border-ink relative">

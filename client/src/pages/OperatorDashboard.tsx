@@ -2,26 +2,29 @@ import { Link } from "react-router-dom";
 import { DashboardLayout } from "@/components/shell/DashboardLayout";
 import { ManifestCard, IdTab, StatusBand, Brackets, MonoLabel, Tag, PulseDot, Monogram } from "@/components/manifest/Manifest";
 import { FlButton } from "@/components/manifest/FlButton";
-import { useMyAgents, useOperatorProfile } from "@/lib/api";
+import { useMyAgents, useOperatorProfile, useEarnings } from "@/lib/api";
 import { useWalletAuth } from "@/components/auth/WalletAuth";
 import type { Agent } from "@/data/mock";
 
-const EARN_7D = [38, 52, 41, 67, 49, 72, 47];
 const DAYS = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
 
 export default function OperatorDashboard() {
   const { address } = useWalletAuth();
   const { data: agentsData, isLoading: agentsLoading } = useMyAgents(address ?? "");
   const { data: profileData, isLoading: profileLoading } = useOperatorProfile(address ?? "");
+  const { data: earningsData, isLoading: earningsLoading } = useEarnings(address ?? "");
 
   const myAgents = (agentsData as Agent[] | undefined) ?? [];
   const profile = profileData as Record<string, unknown> | undefined;
 
-  const total = myAgents.reduce((s, a) => s + a.earnings, 0);
-  const week = EARN_7D.reduce((s, v) => s + v, 0);
-  const peak = Math.max(...EARN_7D);
+  const daily = earningsData?.daily ?? [];
+  const earn7d = daily.slice(-7);
+  const total = earningsData?.lifetime ?? 0;
+  const withdrawable = earningsData?.withdrawable ?? 0;
+  const week = earn7d.reduce((s, v) => s + v, 0);
+  const peak = earn7d.length > 0 ? Math.max(...earn7d) : 0;
 
-  if (agentsLoading || profileLoading) {
+  if (agentsLoading || profileLoading || earningsLoading) {
     return (
       <DashboardLayout role="operator" title="Overview." subtitle="Loading your fleet data...">
         <div className="border-2 border-ink p-12 text-center">
@@ -53,7 +56,7 @@ export default function OperatorDashboard() {
         {[
           ["AGENTS DEPLOYED", String(myAgents.length), `${myAgents.filter((a) => a.active).length} ACTIVE NOW`],
           ["TODAY · EARNED", profile?.todayEarned ? `${profile.todayEarned} USDT` : "— USDT", profile?.todayDelta ? `${profile.todayDelta}` : "—"],
-          ["WITHDRAWABLE", profile?.withdrawable ? `${Number(profile.withdrawable).toLocaleString()} USDT` : "— USDT", "READY TO PULL"],
+          ["WITHDRAWABLE", `${withdrawable.toLocaleString()} USDT`, "READY TO PULL"],
           ["GHOST RATE", profile?.ghostRate ? `${profile.ghostRate}%` : "—%", "TARGET <5%"],
         ].map(([l, v, sub]) => (
           <div key={l} className="border-2 border-ink p-5 bg-paper">
@@ -81,7 +84,7 @@ export default function OperatorDashboard() {
                 </div>
               </div>
               <div className="flex items-end gap-3 h-44 border-b border-ink">
-                {EARN_7D.map((v, i) => (
+                {earn7d.map((v, i) => (
                   <div key={DAYS[i]} className="flex-1 flex flex-col items-center gap-2 h-full justify-end">
                     <span className="mono-small tabular-nums">{v}</span>
                     <div
