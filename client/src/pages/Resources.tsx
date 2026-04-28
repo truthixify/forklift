@@ -3,7 +3,6 @@ import { AppShell } from "@/components/shell/AppShell";
 import { ManifestCard, IdTab, MonoLabel, Tag, Brackets, PulseDot, StatusBand } from "@/components/manifest/Manifest";
 import { FlButton } from "@/components/manifest/FlButton";
 import { useResourceCatalog } from "@/lib/api";
-import { useTickingCounter } from "@/hooks/useLiveFeed";
 
 interface ResourceItem {
   path: string;
@@ -23,21 +22,11 @@ function toResource(raw: Record<string, unknown>): ResourceItem {
   };
 }
 
-// Realistic 24h call volumes per endpoint
-const VOLUMES: Record<string, number> = {
-  "/v1/inference/premium-image-gen": 1284,
-  "/v1/data/curated-leads": 4720,
-  "/v1/research/papers": 612,
-  "/v1/inference/whisper-large": 218,
-  "/v1/web/site-screenshot": 3104,
-};
-
-function EndpointTraffic({ path }: { path: string }) {
-  const v = useTickingCounter(VOLUMES[path] ?? 0, 0, 3, 4500);
+function EndpointTraffic() {
   return (
     <div className="flex items-center gap-2">
       <PulseDot state="live" />
-      <span className="mono-small tabular-nums">{v.toLocaleString()} CALLS / 24H</span>
+      <span className="mono-small tabular-nums">ACTIVE</span>
     </div>
   );
 }
@@ -118,7 +107,7 @@ export default function Resources() {
                 <p className="mt-3 text-[15px] leading-[1.55] max-w-[56ch]">{r.desc}</p>
                 <div className="mt-4 flex gap-2 items-center flex-wrap">
                   <Tag>x402</Tag><Tag>JSON</Tag><Tag>PAY-PER-CALL</Tag>
-                  <EndpointTraffic path={r.path} />
+                  <EndpointTraffic />
                 </div>
               </div>
               <div className="col-span-12 md:col-span-5 md:text-right">

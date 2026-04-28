@@ -2,7 +2,6 @@ import { useMemo, useState } from "react";
 import { AppShell } from "@/components/shell/AppShell";
 import { ManifestCard, IdTab, StatusBand, MonoLabel, PulseDot } from "@/components/manifest/Manifest";
 import { ActivityRow } from "@/components/manifest/ActivityRow";
-import { useLiveFeed } from "@/hooks/useLiveFeed";
 import { useRealFeed } from "@/hooks/useRealFeed";
 import { useFeed } from "@/lib/api";
 import type { FeedEvent } from "@/hooks/useRealFeed";
@@ -37,18 +36,38 @@ function feedEventToActivity(e: FeedEvent, index: number): ActivityEvent {
 export default function LiveFeed() {
   const [active, setActive] = useState<FilterKey[]>(FILTERS.map((f) => f.key));
   const { events: wsEvents, connected: wsConnected } = useRealFeed();
-  const mockEvents = useLiveFeed(3200);
   const { data: feedData } = useFeed({ limit: '100' });
   const feedEvents = (feedData as { events?: unknown[] })?.events ?? [];
 
+  const apiFeedEvents: ActivityEvent[] = useMemo(() => {
+    return feedEvents.map((raw: unknown, i: number) => {
+      const e = raw as Record<string, unknown>;
+      const eventName = (e.eventName ?? 'posted') as string;
+      const data = (e.data ?? {}) as Record<string, unknown>;
+      const ts = e.indexedAt ? new Date(e.indexedAt as string).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' }) + ' UTC' : '';
+      const actor = (data.poster ?? data.agent ?? 'System') as string;
+      return {
+        id: `api-${i}`,
+        ts,
+        agoMin: 0,
+        actor: actor.slice(0, 8) + '...',
+        monogram: eventName.charAt(0).toUpperCase(),
+        kind: eventName === 'BountyCreated' ? 'posted' : eventName === 'BountyPaid' ? 'paid' : eventName === 'DeliverySubmitted' ? 'delivered' : eventName === 'BountyAssigned' ? 'claimed' : 'posted' as ActivityEvent['kind'],
+        body: `${eventName} ${(e.bountyId as string)?.slice(0, 10) ?? ''}`.trim(),
+        bountyId: e.bountyId as string | undefined,
+        amount: data.amountUSDT ? Number(data.amountUSDT) / 1e18 : undefined,
+      };
+    });
+  }, [feedEvents]);
+
   const eventsHr = feedEvents.length;
-  const paidToday = feedEvents.filter((e: Record<string, unknown>) => (e as { eventName?: string }).eventName === 'BountyPaid').length;
-  const usdtToday = 0;
+  const paidToday = feedEvents.filter((e: unknown) => (e as { eventName?: string }).eventName === 'BountyPaid').length;
+  const usdtToday = apiFeedEvents.reduce((sum, e) => sum + (e.amount ?? 0), 0);
   const block = feedEvents.length > 0 ? Number((feedEvents[0] as Record<string, unknown>).blockNumber ?? 0) : 0;
 
   const events: ActivityEvent[] = wsConnected && wsEvents.length > 0
     ? wsEvents.map(feedEventToActivity)
-    : mockEvents;
+    : apiFeedEvents;
 
   const filtered = useMemo(() => {
     const enabled = FILTERS.filter((f) => active.includes(f.key));
