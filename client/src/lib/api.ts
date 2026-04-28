@@ -198,16 +198,20 @@ export function useDelivery(bountyId: string) {
 
 // Settlement
 export function useApproveBounty() {
+  const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ bountyId, ...body }: { bountyId: string; posterAddress: string; rating?: number; comment?: string }) =>
       apiFetch(`/bounties/${bountyId}/approve`, { method: 'POST', body: JSON.stringify(body) }),
+    onSuccess: (_data, vars) => { qc.invalidateQueries({ queryKey: ['bounty', vars.bountyId] }); qc.invalidateQueries({ queryKey: ['bounties'] }); },
   });
 }
 
 export function useRejectBounty() {
+  const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ bountyId, ...body }: { bountyId: string; posterAddress: string; reason: string }) =>
       apiFetch(`/bounties/${bountyId}/reject`, { method: 'POST', body: JSON.stringify(body) }),
+    onSuccess: (_data, vars) => { qc.invalidateQueries({ queryKey: ['bounty', vars.bountyId] }); qc.invalidateQueries({ queryKey: ['bounties'] }); },
   });
 }
 

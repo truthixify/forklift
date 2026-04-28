@@ -18,6 +18,14 @@ export class SettlementController {
     private readonly prisma: PrismaService,
   ) {}
 
+  private async isAlreadySettled(bountyId: string): Promise<string | null> {
+    const settled = await this.prisma.indexedEvent.findFirst({
+      where: { bountyId, eventName: { in: ['BountyPaid', 'BountyRefunded'] } },
+    });
+    if (settled) return (settled.eventName === 'BountyPaid') ? 'paid' : 'refunded';
+    return null;
+  }
+
   private async getBountyContext(bountyId: string) {
     const signature = await this.prisma.bountySignature.findFirst({ where: { bountyId } });
     const createdEvent = await this.prisma.indexedEvent.findFirst({
@@ -50,6 +58,9 @@ export class SettlementController {
     @Body() body: { posterAddress: string; rating?: number; comment?: string },
   ) {
     try {
+      const already = await this.isAlreadySettled(bountyId);
+      if (already) return { error: `Bounty already ${already}` };
+
       const ctx = await this.getBountyContext(bountyId);
 
       if (!ctx.delivery) {
@@ -107,6 +118,9 @@ export class SettlementController {
     @Body() body: { posterAddress: string; reason: string },
   ) {
     try {
+      const already = await this.isAlreadySettled(bountyId);
+      if (already) return { error: `Bounty already ${already}` };
+
       const ctx = await this.getBountyContext(bountyId);
       const brokerAlsoRejected = ctx.verifierResult && !ctx.verifierResult.passed;
 
