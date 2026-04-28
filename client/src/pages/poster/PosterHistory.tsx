@@ -48,7 +48,7 @@ export default function PosterHistory() {
     const mapped = raw.map((b) => toBounty(b as Record<string, unknown>));
     const posterId = (posterData as Record<string, unknown>)?.id as string | undefined;
     return mapped
-      .filter((b) => b.poster === address || b.poster === posterId)
+      .filter((b) => { const p = b.poster.toLowerCase(); return p === address?.toLowerCase() || p === posterId?.toLowerCase(); })
       .filter((b) => STATES.includes(b.state as HState));
   }, [bountyData, address, posterData]);
 

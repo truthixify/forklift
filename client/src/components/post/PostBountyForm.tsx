@@ -29,16 +29,22 @@ interface DraftResult {
   id?: string;
   bountyId?: string;
   title?: string;
+  description?: string;
   template?: string;
   templateId?: string;
+  matchedTemplate?: string;
   kind?: string;
   deliverableKind?: string;
+  deliverableSchema?: { version?: string; payload?: { kind?: string } };
   verifier?: string[];
   verifiers?: string[];
+  verifierConfig?: { type?: string; config?: Record<string, unknown> };
   claimWindow?: string;
   amount?: number;
   suggestedAmount?: number;
+  suggestedDeadlineSec?: number;
   brief?: string;
+  parsingNotes?: string;
   parseTrace?: string[];
   shortId?: string;
 }
@@ -180,10 +186,14 @@ export function PostBountyForm({ dashboardHref = "/dashboard/poster" }: Props) {
   }
 
   const draftTitle = draft?.title ?? "Parsed bounty";
-  const draftTemplate = (draft?.template ?? draft?.templateId ?? template ?? "CUSTOM").toUpperCase();
-  const draftKind = (draft?.kind ?? draft?.deliverableKind ?? "file").toUpperCase();
-  const draftVerifiers = draft?.verifier ?? draft?.verifiers ?? [];
-  const draftClaimWindow = draft?.claimWindow ?? "02:00:00";
+  const draftDescription = draft?.description ?? brief;
+  const draftTemplate = (draft?.matchedTemplate ?? draft?.template ?? draft?.templateId ?? template ?? "CUSTOM").toUpperCase();
+  const draftKind = (draft?.deliverableSchema?.payload?.kind ?? draft?.kind ?? draft?.deliverableKind ?? "file").toUpperCase();
+  const draftVerType = draft?.verifierConfig?.type ?? (draft?.verifier?.[0]) ?? "llm-judge";
+  const draftVerifiers = draft?.verifier ?? (draftVerType ? [draftVerType] : []);
+  const draftDeadlineSec = draft?.suggestedDeadlineSec ?? 7200;
+  const draftClaimWindow = `${String(Math.floor(draftDeadlineSec / 3600)).padStart(2, "0")}:${String(Math.floor((draftDeadlineSec % 3600) / 60)).padStart(2, "0")}:00`;
+  const draftNotes = draft?.parsingNotes ?? "";
 
   const stageNum = stage === 1.5 ? 1 : stage;
 
@@ -295,18 +305,30 @@ export function PostBountyForm({ dashboardHref = "/dashboard/poster" }: Props) {
           <div className="col-span-12 lg:col-span-7">
             <ManifestCard idTab={<IdTab>STAGE 02 · REVIEW</IdTab>} formFooter="PARSED BOUNTY MANIFEST" pageNumber="02 / 03">
               <StatusBand state="delivered" pulse={false}>BROKER PARSED · EDIT ANY FIELD</StatusBand>
-              <div className="p-7">
-                <MonoLabel ink>TITLE</MonoLabel>
-                <FlInput defaultValue={draftTitle} className="mt-2" />
-                <div className="mt-5 grid grid-cols-2 gap-4">
+              <div className="p-7 space-y-5">
+                <div>
+                  <MonoLabel ink>TITLE</MonoLabel>
+                  <FlInput defaultValue={draftTitle} className="mt-2" />
+                </div>
+                <div>
+                  <MonoLabel ink>DESCRIPTION</MonoLabel>
+                  <FlTextarea rows={4} defaultValue={draftDescription} className="mt-2" />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
                   <div><MonoLabel ink className="block mb-2">TEMPLATE</MonoLabel><Tag variant="cobalt">{draftTemplate}</Tag></div>
                   <div><MonoLabel ink className="block mb-2">DELIVERABLE</MonoLabel><Tag>{draftKind}</Tag></div>
                   <div><MonoLabel ink className="block mb-2">VERIFIER</MonoLabel><div className="flex gap-2">{draftVerifiers.length > 0 ? draftVerifiers.map((v) => <Tag key={v}>{String(v).toUpperCase()}</Tag>) : <Tag>JUDGE</Tag>}</div></div>
-                  <div><MonoLabel ink className="block mb-2">CLAIM WINDOW</MonoLabel><Tag>{draftClaimWindow}</Tag></div>
+                  <div><MonoLabel ink className="block mb-2">DEADLINE</MonoLabel><Tag>{draftClaimWindow}</Tag></div>
                 </div>
-                <div className="mt-5">
-                  <MonoLabel ink className="block mb-2">PARSED BRIEF</MonoLabel>
-                  <div className="border border-ink p-4 text-[14px] leading-[1.6] bg-hairline/30">{brief}</div>
+                {draftNotes && (
+                  <div>
+                    <MonoLabel ink className="block mb-2">BROKER NOTES</MonoLabel>
+                    <div className="border border-ink p-3 text-[13px] leading-[1.6] bg-hairline/30 mono-inline">{draftNotes}</div>
+                  </div>
+                )}
+                <div>
+                  <MonoLabel ink className="block mb-2">ORIGINAL BRIEF</MonoLabel>
+                  <div className="border border-ink p-3 text-[13px] leading-[1.6] bg-hairline/20">{brief}</div>
                 </div>
               </div>
             </ManifestCard>

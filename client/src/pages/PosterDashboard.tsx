@@ -41,7 +41,7 @@ export default function PosterDashboard() {
   }, [bountyData]);
 
   const myBounties = useMemo(
-    () => bounties.filter((b) => b.poster === address || b.poster === (posterData as Record<string, unknown>)?.id),
+    () => { const addr = address?.toLowerCase(); const pid = ((posterData as Record<string, unknown>)?.id as string)?.toLowerCase(); return bounties.filter((b) => { const p = b.poster.toLowerCase(); return p === addr || p === pid; }); },
     [bounties, address, posterData],
   );
 

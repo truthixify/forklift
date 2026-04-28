@@ -46,7 +46,12 @@ export default function PosterBounties() {
     if (!Array.isArray(raw)) return [];
     const all = raw.map((b) => toBounty(b as Record<string, unknown>));
     const posterId = (posterData as Record<string, unknown>)?.id as string | undefined;
-    return all.filter((b) => b.poster === address || b.poster === posterId);
+    const addr = address?.toLowerCase();
+    const pid = posterId?.toLowerCase();
+    return all.filter((b) => {
+      const p = b.poster.toLowerCase();
+      return p === addr || p === pid;
+    });
   }, [bountyData, address, posterData]);
 
   const filter = FILTERS.find((f) => f.id === active)!;
