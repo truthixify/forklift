@@ -1,7 +1,10 @@
+import { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/shell/DashboardLayout";
 import { ManifestCard, IdTab, MonoLabel, Tag, Monogram } from "@/components/manifest/Manifest";
 import { FlButton } from "@/components/manifest/FlButton";
 import { FlInput } from "@/components/manifest/FlInput";
+import { useWalletAuth } from "@/components/auth/WalletAuth";
+import { useMe, useUpdateProfile, useLogout } from "@/lib/api";
 
 const POSTER_NOTIFS = [
   "Agent claimed your bounty",
@@ -13,30 +16,69 @@ const POSTER_NOTIFS = [
 ];
 
 export default function PosterSettings() {
+  const { address, signOut } = useWalletAuth();
+  const { data: meData } = useMe();
+  const updateProfile = useUpdateProfile();
+  const logoutMutation = useLogout();
+
+  const user = (meData as Record<string, unknown>)?.user as Record<string, unknown> | undefined;
+
+  const [displayName, setDisplayName] = useState("");
+  const [email, setEmail] = useState("");
+  const [defaultTemplate, setDefaultTemplate] = useState("");
+  const [autoApproveHours, setAutoApproveHours] = useState("72");
+  const [maxBounty, setMaxBounty] = useState("500");
+
+  useEffect(() => {
+    if (user) {
+      setDisplayName((user.displayName as string) ?? "");
+      setEmail((user.email as string) ?? "");
+      setDefaultTemplate((user.defaultTemplate as string) ?? "");
+      setAutoApproveHours(String(user.autoApproveHours ?? 72));
+      setMaxBounty(String(user.maxBountyUsdt ?? 500));
+    }
+  }, [user]);
+
+  const save = () => {
+    updateProfile.mutate({
+      displayName,
+      email: email || undefined,
+      defaultTemplate: defaultTemplate || undefined,
+      autoApproveHours: Number(autoApproveHours),
+      maxBountyUsdt: Number(maxBounty),
+    });
+  };
+
+  const shortAddr = address ? `${address.slice(0, 6)}…${address.slice(-4)}` : "—";
+  const monogram = displayName ? displayName.charAt(0).toUpperCase() : shortAddr.charAt(0).toUpperCase();
+
   return (
     <DashboardLayout role="poster" title="Settings." subtitle="Profile, notifications, and account controls — scoped to your poster identity.">
       <ManifestCard idTab={<IdTab variant="ink">POSTER PROFILE</IdTab>} formFooter="VISIBLE ON YOUR PUBLIC PROFILE">
         <div className="p-7 grid grid-cols-12 gap-6 items-center">
           <div className="col-span-12 md:col-span-3 flex flex-col items-start gap-3">
-            <Monogram letter="C" size={96} variant="ink" />
+            <Monogram letter={monogram} size={96} variant="ink" />
             <div className="flex gap-2">
               <Tag>INK</Tag><Tag variant="cobalt">COBALT</Tag><Tag>PAPER</Tag>
             </div>
           </div>
           <div className="col-span-12 md:col-span-9 space-y-4">
-            <FlInput label="DISPLAY NAME" defaultValue="Cara · indie-hacker" />
-            <FlInput label="WALLET" defaultValue="0xC4F9…8E21" disabled />
-            <FlInput label="EMAIL · OPTIONAL" defaultValue="cara@quietbotanic.co" />
-            <FlInput label="DEFAULT BOUNTY TEMPLATE" defaultValue="LOGO-DESIGN" />
+            <FlInput label="DISPLAY NAME" value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
+            <FlInput label="WALLET" value={shortAddr} disabled />
+            <FlInput label="EMAIL · OPTIONAL" value={email} onChange={(e) => setEmail(e.target.value)} />
+            <FlInput label="DEFAULT BOUNTY TEMPLATE" value={defaultTemplate} onChange={(e) => setDefaultTemplate(e.target.value)} />
+            <FlButton variant="cobalt" onClick={save} disabled={updateProfile.isPending}>
+              {updateProfile.isPending ? "Saving..." : "Save profile"}
+            </FlButton>
           </div>
         </div>
       </ManifestCard>
 
       <ManifestCard idTab={<IdTab variant="cobalt">ESCROW & PAYMENTS</IdTab>} formFooter="POSTER PAYMENT DEFAULTS">
         <div className="p-7 space-y-4">
-          <FlInput label="DEFAULT ESCROW TOKEN" defaultValue="USDT · BASE" disabled />
-          <FlInput label="AUTO-APPROVE WINDOW · HOURS" defaultValue="72" type="number" />
-          <FlInput label="MAX BOUNTY AMOUNT · USDT" defaultValue="500" type="number" />
+          <FlInput label="DEFAULT ESCROW TOKEN" defaultValue="USDT · KITE" disabled />
+          <FlInput label="AUTO-APPROVE WINDOW · HOURS" value={autoApproveHours} onChange={(e) => setAutoApproveHours(e.target.value)} type="number" />
+          <FlInput label="MAX BOUNTY AMOUNT · USDT" value={maxBounty} onChange={(e) => setMaxBounty(e.target.value)} type="number" />
           <div className="flex justify-between items-center pt-2 border-t border-hairline">
             <div>
               <MonoLabel ink className="block">DISPUTE STAKE</MonoLabel>
@@ -44,6 +86,9 @@ export default function PosterSettings() {
             </div>
             <Tag variant="cobalt">5 USDT</Tag>
           </div>
+          <FlButton variant="cobalt" onClick={save} disabled={updateProfile.isPending}>
+            {updateProfile.isPending ? "Saving..." : "Save payment settings"}
+          </FlButton>
         </div>
       </ManifestCard>
 
@@ -63,10 +108,10 @@ export default function PosterSettings() {
       <ManifestCard idTab={<IdTab variant="ink">DANGER ZONE</IdTab>} formFooter="ACCOUNT TERMINATION">
         <div className="p-7 flex items-center justify-between flex-wrap gap-4">
           <div>
-            <h3 className="font-display font-medium text-[20px]">Revoke session & delete poster account</h3>
-            <p className="mono-small text-muted-ink mt-1">YOUR ON-CHAIN HISTORY REMAINS · YOUR PROFILE IS REMOVED</p>
+            <h3 className="font-display font-medium text-[20px]">Revoke session & sign out</h3>
+            <p className="mono-small text-muted-ink mt-1">YOUR ON-CHAIN HISTORY REMAINS</p>
           </div>
-          <FlButton variant="destructive">Delete poster account</FlButton>
+          <FlButton variant="destructive" onClick={() => { logoutMutation.mutate(); signOut(); }}>Sign out</FlButton>
         </div>
       </ManifestCard>
     </DashboardLayout>

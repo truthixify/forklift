@@ -1,7 +1,10 @@
+import { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/shell/DashboardLayout";
 import { ManifestCard, IdTab, MonoLabel, Tag, Monogram } from "@/components/manifest/Manifest";
 import { FlButton } from "@/components/manifest/FlButton";
 import { FlInput } from "@/components/manifest/FlInput";
+import { useWalletAuth } from "@/components/auth/WalletAuth";
+import { useMe, useUpdateProfile, useLogout } from "@/lib/api";
 
 const OPERATOR_NOTIFS = [
   "Agent earned a payment",
@@ -13,55 +16,77 @@ const OPERATOR_NOTIFS = [
 ];
 
 export default function OperatorSettings() {
+  const { address, signOut } = useWalletAuth();
+  const { data: meData } = useMe();
+  const updateProfile = useUpdateProfile();
+  const logoutMutation = useLogout();
+
+  const user = (meData as Record<string, unknown>)?.user as Record<string, unknown> | undefined;
+
+  const [orgName, setOrgName] = useState("");
+  const [email, setEmail] = useState("");
+  const [webhook, setWebhook] = useState("");
+  const [spendPerTask, setSpendPerTask] = useState("2.50");
+  const [dailyCap, setDailyCap] = useState("50.00");
+  const [withdrawThreshold, setWithdrawThreshold] = useState("1000");
+
+  useEffect(() => {
+    if (user) {
+      setOrgName((user.orgName as string) ?? (user.displayName as string) ?? "");
+      setEmail((user.email as string) ?? "");
+      setWebhook((user.opsWebhook as string) ?? "");
+      setSpendPerTask((user.defaultSpendPerTask as string) ?? "2.50");
+      setDailyCap((user.defaultDailyCap as string) ?? "50.00");
+      setWithdrawThreshold((user.autoWithdrawThreshold as string) ?? "1000");
+    }
+  }, [user]);
+
+  const save = () => {
+    updateProfile.mutate({
+      orgName: orgName || undefined,
+      email: email || undefined,
+      opsWebhook: webhook || undefined,
+      defaultSpendPerTask: spendPerTask,
+      defaultDailyCap: dailyCap,
+      autoWithdrawThreshold: withdrawThreshold,
+      displayName: orgName || undefined,
+    });
+  };
+
+  const shortAddr = address ? `${address.slice(0, 6)}…${address.slice(-4)}` : "—";
+  const monogram = orgName ? orgName.charAt(0).toUpperCase() : shortAddr.charAt(0).toUpperCase();
+
   return (
-    <DashboardLayout
-      role="operator"
-      title="Settings."
-      subtitle="Operator profile, fleet defaults, AI keys, and payouts."
-    >
+    <DashboardLayout role="operator" title="Settings." subtitle="Operator profile, fleet defaults, and payouts.">
       <ManifestCard idTab={<IdTab variant="ink">OPERATOR PROFILE</IdTab>} formFooter="VISIBLE ON OPERATOR DIRECTORY">
         <div className="p-7 grid grid-cols-12 gap-6 items-center">
           <div className="col-span-12 md:col-span-3 flex flex-col items-start gap-3">
-            <Monogram letter="B" size={96} variant="ink" />
+            <Monogram letter={monogram} size={96} variant="ink" />
             <div className="flex gap-2"><Tag>INK</Tag><Tag variant="lime">VERIFIED</Tag></div>
           </div>
           <div className="col-span-12 md:col-span-9 space-y-4">
-            <FlInput label="ORGANIZATION" defaultValue="Block Foundry" />
-            <FlInput label="OPERATOR WALLET · PAYOUT" defaultValue="0x91A2…77F4" disabled />
-            <FlInput label="CONTACT EMAIL" defaultValue="ops@blockfoundry.xyz" />
-            <FlInput label="OPS WEBHOOK · OPTIONAL" placeholder="https://hooks.example.com/forklift" />
+            <FlInput label="ORGANIZATION" value={orgName} onChange={(e) => setOrgName(e.target.value)} />
+            <FlInput label="OPERATOR WALLET · PAYOUT" value={shortAddr} disabled />
+            <FlInput label="CONTACT EMAIL" value={email} onChange={(e) => setEmail(e.target.value)} />
+            <FlInput label="OPS WEBHOOK · OPTIONAL" value={webhook} onChange={(e) => setWebhook(e.target.value)} />
+            <FlButton variant="cobalt" onClick={save} disabled={updateProfile.isPending}>
+              {updateProfile.isPending ? "Saving..." : "Save profile"}
+            </FlButton>
           </div>
         </div>
       </ManifestCard>
 
       <ManifestCard idTab={<IdTab variant="cobalt">FLEET DEFAULTS</IdTab>} formFooter="APPLIED TO NEW AGENTS">
         <div className="p-7 grid grid-cols-1 md:grid-cols-2 gap-4">
-          <FlInput label="DEFAULT MAX SPEND PER TASK" defaultValue="2.50" unit="USDT" />
-          <FlInput label="DEFAULT DAILY CAP" defaultValue="50.00" unit="USDT" />
-          <FlInput label="DEFAULT AI PROVIDER" defaultValue="FORKLIFT GATEWAY" />
-          <FlInput label="AUTO-WITHDRAW THRESHOLD" defaultValue="1000" unit="USDT" />
+          <FlInput label="DEFAULT MAX SPEND PER TASK" value={spendPerTask} onChange={(e) => setSpendPerTask(e.target.value)} />
+          <FlInput label="DEFAULT DAILY CAP" value={dailyCap} onChange={(e) => setDailyCap(e.target.value)} />
+          <FlInput label="DEFAULT AI PROVIDER" defaultValue="FORKLIFT GATEWAY" disabled />
+          <FlInput label="AUTO-WITHDRAW THRESHOLD" value={withdrawThreshold} onChange={(e) => setWithdrawThreshold(e.target.value)} />
         </div>
-      </ManifestCard>
-
-      <ManifestCard idTab={<IdTab variant="ink">AI PROVIDER KEYS</IdTab>} formFooter="STORED ENCRYPTED · ROTATE OFTEN">
-        <div className="p-7 space-y-3">
-          {[
-            ["OPENAI", "sk-…7QJ4", "ACTIVE"],
-            ["ANTHROPIC", "sk-ant-…02RB", "ACTIVE"],
-            ["GOOGLE", "—", "NOT SET"],
-            ["FORKLIFT GATEWAY", "BUNDLED", "ACTIVE"],
-          ].map(([p, k, s]) => (
-            <div key={p} className="flex items-center justify-between border border-ink px-4 h-12">
-              <div className="flex items-center gap-4">
-                <MonoLabel ink className="w-44 inline-block">{p}</MonoLabel>
-                <span className="mono-inline">{k}</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <Tag variant={s === "ACTIVE" ? "lime" : "ink"}>{s}</Tag>
-                <FlButton variant="ghost" size="sm">Rotate</FlButton>
-              </div>
-            </div>
-          ))}
+        <div className="px-7 pb-7">
+          <FlButton variant="cobalt" onClick={save} disabled={updateProfile.isPending}>
+            {updateProfile.isPending ? "Saving..." : "Save fleet defaults"}
+          </FlButton>
         </div>
       </ManifestCard>
 
@@ -81,10 +106,10 @@ export default function OperatorSettings() {
       <ManifestCard idTab={<IdTab variant="ink">DANGER ZONE</IdTab>} formFooter="OPERATOR TERMINATION">
         <div className="p-7 flex items-center justify-between flex-wrap gap-4">
           <div>
-            <h3 className="font-display font-medium text-[20px]">Pause all agents & wind down operator</h3>
+            <h3 className="font-display font-medium text-[20px]">Sign out & revoke session</h3>
             <p className="mono-small text-muted-ink mt-1">EARNINGS REMAIN WITHDRAWABLE FOR 30 DAYS</p>
           </div>
-          <FlButton variant="destructive">Wind down operator</FlButton>
+          <FlButton variant="destructive" onClick={() => { logoutMutation.mutate(); signOut(); }}>Sign out</FlButton>
         </div>
       </ManifestCard>
     </DashboardLayout>

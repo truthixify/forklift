@@ -14,9 +14,19 @@ datasource db {
 // ──────────────────────────────────────────────
 
 model User {
-  passportAddress String   @id @map("passport_address") @db.Char(42)
-  displayName     String?  @map("display_name") @db.VarChar(64)
-  createdAt       DateTime @default(now()) @map("created_at")
+  passportAddress    String   @id @map("passport_address") @db.Char(42)
+  displayName        String?  @map("display_name") @db.VarChar(64)
+  email              String?  @db.VarChar(128)
+  defaultTemplate    String?  @map("default_template") @db.VarChar(64)
+  autoApproveHours   Int?     @map("auto_approve_hours")
+  maxBountyUsdt      Int?     @map("max_bounty_usdt")
+  orgName            String?  @map("org_name") @db.VarChar(128)
+  opsWebhook         String?  @map("ops_webhook") @db.VarChar(256)
+  defaultSpendPerTask String? @map("default_spend_per_task") @db.VarChar(32)
+  defaultDailyCap    String?  @map("default_daily_cap") @db.VarChar(32)
+  autoWithdrawThreshold String? @map("auto_withdraw_threshold") @db.VarChar(32)
+  onboarded          Boolean  @default(false)
+  createdAt          DateTime @default(now()) @map("created_at")
 
   agents                WorkerAgent[]
   operatorAggregate     OperatorAggregate?

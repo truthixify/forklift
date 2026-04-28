@@ -1,6 +1,6 @@
 // Copyright 2025 Forklift. Apache-2.0 license.
 
-import { Controller, Post, Get, Body, Req, Res } from '@nestjs/common';
+import { Controller, Post, Get, Patch, Body, Req, Res } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { randomUUID } from 'node:crypto';
 import type { Request, Response } from 'express';
@@ -77,6 +77,48 @@ export class AuthController {
     });
 
     return { authenticated: true, user, sessionId: session.sessionId };
+  }
+
+  @Patch('profile')
+  async updateProfile(
+    @Req() req: Request,
+    @Body() body: {
+      displayName?: string;
+      email?: string;
+      defaultTemplate?: string;
+      autoApproveHours?: number;
+      maxBountyUsdt?: number;
+      orgName?: string;
+      opsWebhook?: string;
+      defaultSpendPerTask?: string;
+      defaultDailyCap?: string;
+      autoWithdrawThreshold?: string;
+    },
+  ) {
+    const token = req.cookies?.['session'] as string | undefined;
+    if (!token) return { error: 'Not authenticated' };
+
+    const session = await this.authService.validateToken(token);
+    if (!session) return { error: 'Invalid session' };
+
+    const user = await this.prisma.user.update({
+      where: { passportAddress: session.userAddress },
+      data: {
+        displayName: body.displayName,
+        email: body.email,
+        defaultTemplate: body.defaultTemplate,
+        autoApproveHours: body.autoApproveHours,
+        maxBountyUsdt: body.maxBountyUsdt,
+        orgName: body.orgName,
+        opsWebhook: body.opsWebhook,
+        defaultSpendPerTask: body.defaultSpendPerTask,
+        defaultDailyCap: body.defaultDailyCap,
+        autoWithdrawThreshold: body.autoWithdrawThreshold,
+        onboarded: true,
+      },
+    });
+
+    return { user };
   }
 
   @Post('logout')

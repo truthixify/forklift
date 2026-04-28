@@ -33,6 +33,15 @@ export function useSignIn() {
   });
 }
 
+export function useUpdateProfile() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: Record<string, unknown>) =>
+      apiFetch('/auth/profile', { method: 'PATCH', body: JSON.stringify(body) }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['me'] }),
+  });
+}
+
 export function useLogout() {
   const qc = useQueryClient();
   return useMutation({
