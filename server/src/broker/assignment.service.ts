@@ -7,6 +7,7 @@ import type { Prisma } from '@prisma/client';
 import { PrismaService } from '@forklift/database';
 import {
   createBrokerWalletClient,
+  createKitePublicClient,
   signAssign,
   hashData,
   BOUNTY_ESCROW_ABI,
@@ -59,6 +60,19 @@ export class AssignmentService {
     const escrowAddress = this.config.get<string>('BOUNTY_ESCROW_ADDRESS');
 
     if (brokerKey && escrowAddress) {
+      const publicClient = createKitePublicClient();
+      const onChain = await publicClient.readContract({
+        address: escrowAddress as `0x${string}`,
+        abi: BOUNTY_ESCROW_ABI,
+        functionName: 'bounties',
+        args: [bountyId],
+      });
+      const fields = onChain as unknown as readonly unknown[];
+      const onChainStatus = Number(fields[6] ?? 0);
+      if (onChainStatus !== 0) {
+        this.logger.warn(`Bounty ${bountyId} already on-chain status ${onChainStatus} — skipping assign tx`);
+      } else {
+
       const walletClient = createBrokerWalletClient(brokerKey as `0x${string}`);
       const signature = await signAssign(
         walletClient,
@@ -93,6 +107,8 @@ export class AssignmentService {
           this.logger.error(`On-chain assign failed for ${bountyId}: ${msg}`);
         }
       }
+
+      } // end else (onChainStatus === 0)
     } else {
       this.logger.warn('BROKER_PRIVATE_KEY or BOUNTY_ESCROW_ADDRESS not set; skipping on-chain assignment');
     }
