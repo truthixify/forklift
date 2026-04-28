@@ -192,6 +192,15 @@ export function useMarkRead() {
   });
 }
 
+export function useMarkAllRead() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (userAddress: string) =>
+      apiFetch('/notifications/read-all', { method: 'POST', body: JSON.stringify({ userAddress }) }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['notifications'] }),
+  });
+}
+
 // Resources
 export function useResourceCatalog() {
   return useQuery({ queryKey: ['resourceCatalog'], queryFn: () => apiFetch('/resources/catalog') });

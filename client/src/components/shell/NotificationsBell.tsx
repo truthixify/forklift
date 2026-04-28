@@ -3,7 +3,7 @@ import { Link, useLocation } from "react-router-dom";
 import { Bell, Coins, FileCheck2, AlertTriangle, Sparkles, Wallet, Pause } from "lucide-react";
 import { MonoLabel } from "@/components/manifest/Manifest";
 import { cn } from "@/lib/utils";
-import { useNotifications, useMarkRead } from "@/lib/api";
+import { useNotifications, useMarkAllRead } from "@/lib/api";
 import { useWalletAuth } from "@/components/auth/WalletAuth";
 
 type Role = "poster" | "operator";
@@ -119,7 +119,7 @@ export function NotificationsBell() {
   const role: Role = pathname.startsWith("/dashboard/operator") ? "operator" : "poster";
   const { address } = useWalletAuth();
   const { data: notifData, isLoading } = useNotifications(address ?? "", false);
-  const markRead = useMarkRead();
+  const markAllRead = useMarkAllRead();
 
   const items: ActivityItem[] = useMemo(() => {
     const raw = notifData as { notifications?: ApiNotification[] } | undefined;
@@ -138,9 +138,8 @@ export function NotificationsBell() {
   const ref = useRef<HTMLDivElement>(null);
 
   const handleMarkAllRead = () => {
-    const raw = notifData as { notifications?: ApiNotification[] } | undefined;
-    if (!raw?.notifications) return;
-    raw.notifications.filter((n) => n.unread).forEach((n) => markRead.mutate(n.id));
+    if (!address) return;
+    markAllRead.mutate(address);
   };
 
   useEffect(() => {

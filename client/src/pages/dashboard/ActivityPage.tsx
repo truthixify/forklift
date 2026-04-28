@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { DashboardLayout } from "@/components/shell/DashboardLayout";
 import { MonoLabel } from "@/components/manifest/Manifest";
 import { ActivityRow } from "@/components/shell/NotificationsBell";
-import { useNotifications, useMarkRead } from "@/lib/api";
+import { useNotifications, useMarkAllRead } from "@/lib/api";
 import { useWalletAuth } from "@/components/auth/WalletAuth";
 
 type Role = "poster" | "operator";
@@ -29,7 +29,7 @@ const CATEGORY_TO_KIND: Record<string, string> = {
 export default function ActivityPage({ role }: { role: Role }) {
   const { address } = useWalletAuth();
   const { data: notifData } = useNotifications(address ?? "", false);
-  const markRead = useMarkRead();
+  const markAllRead = useMarkAllRead();
   const [filter, setFilter] = useState<string>("all");
   const [unreadOnly, setUnreadOnly] = useState(false);
 
@@ -56,7 +56,7 @@ export default function ActivityPage({ role }: { role: Role }) {
   const unread = all.filter((n) => n.unread).length;
 
   const handleMarkAllRead = () => {
-    all.filter((n) => n.unread).forEach((n) => markRead.mutate(n.id));
+    if (address) markAllRead.mutate(address);
   };
 
   return (
