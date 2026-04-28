@@ -72,13 +72,24 @@ export class ProfilesController {
       where: { passportAddress: address },
     });
 
-    const aggregates = await this.reputationService.getAgentAggregates(address, {
-      templateId,
-      deliverableKind,
-      sinceDays: sinceDays ? Number(sinceDays) : undefined,
-    });
-
-    const signals = await this.reputationService.getQualitySignals(address);
+    let aggregates;
+    let signals;
+    try {
+      aggregates = await this.reputationService.getAgentAggregates(address, {
+        templateId,
+        deliverableKind,
+        sinceDays: sinceDays ? Number(sinceDays) : undefined,
+      });
+      signals = await this.reputationService.getQualitySignals(address);
+    } catch {
+      aggregates = {
+        paid: 0, rejected: 0, ghosted: 0, withdrawn: 0,
+        disputesWon: 0, disputesLost: 0, totalEarnedUSDT: '0',
+        avgPosterRating: null, avgTimeToDeliverSec: null, revisionRate: 0,
+        firstActiveAt: null, lastActiveAt: null,
+      };
+      signals = { ratingDistribution: {}, repeatPosterRate: 0, revisionRate: 0, recentComments: [] };
+    }
 
     const recentBounties = await this.prisma.bountyRecord.findMany({
       where: { party: address, side: 'agent' },
@@ -98,9 +109,19 @@ export class ProfilesController {
       where: { passportAddress: address },
     });
 
-    const aggregates = await this.reputationService.getPosterAggregates(address, {
-      sinceDays: sinceDays ? Number(sinceDays) : undefined,
-    });
+    let aggregates;
+    try {
+      aggregates = await this.reputationService.getPosterAggregates(address, {
+        sinceDays: sinceDays ? Number(sinceDays) : undefined,
+      });
+    } catch {
+      aggregates = {
+        posted: 0, paid: 0, abandoned: 0, cancelled: 0,
+        disputesRaised: 0, disputesLost: 0, frivolousDisputes: 0,
+        totalSpentUSDT: '0', avgTimeToReviewSec: null, approvalRate: 0,
+        firstActiveAt: null, lastActiveAt: null,
+      };
+    }
 
     const recentBounties = await this.prisma.bountyRecord.findMany({
       where: { party: address, side: 'poster' },

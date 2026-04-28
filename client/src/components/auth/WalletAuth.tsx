@@ -5,6 +5,7 @@ import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { useQueryClient } from "@tanstack/react-query";
 import { fetchNonce, fetchSignIn, useMe } from "@/lib/api";
 import { OnboardingModal } from "./OnboardingModal";
+import { ManifestCard, IdTab, MonoLabel, PulseDot } from "@/components/manifest/Manifest";
 
 type Role = "poster" | "operator";
 
@@ -18,7 +19,6 @@ interface WalletAuthCtx {
 }
 
 const Ctx = createContext<WalletAuthCtx | null>(null);
-
 const ROLE_KEY = "fl.wallet.role";
 const AUTH_KEY = "fl.wallet.authed";
 
@@ -27,6 +27,24 @@ function loadRole(): Role | null {
     const raw = localStorage.getItem(ROLE_KEY);
     return raw === "poster" || raw === "operator" ? raw : null;
   } catch { return null; }
+}
+
+function SigningModal() {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div className="absolute inset-0 bg-ink/60" />
+      <div className="relative w-full max-w-[400px] mx-4">
+        <ManifestCard shadow="cobalt" idTab={<IdTab variant="cobalt">SIGNING IN</IdTab>}>
+          <div className="p-8 text-center space-y-4">
+            <div className="flex justify-center"><PulseDot state="live" /></div>
+            <h2 className="font-display font-medium text-[24px]">Confirm in your wallet</h2>
+            <MonoLabel className="block">SIGN THE MESSAGE TO AUTHENTICATE</MonoLabel>
+            <p className="text-[14px] text-muted-ink">Check your wallet extension for a signature request. This does not cost gas.</p>
+          </div>
+        </ManifestCard>
+      </div>
+    </div>
+  );
 }
 
 export function WalletAuthProvider({ children }: { children: ReactNode }) {
@@ -40,6 +58,7 @@ export function WalletAuthProvider({ children }: { children: ReactNode }) {
 
   const [role, setRole] = useState<Role | null>(loadRole);
   const [authenticated, setAuthenticated] = useState(() => localStorage.getItem(AUTH_KEY) === "true");
+  const [signing, setSigning] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [pendingAuth, setPendingAuth] = useState<{ intendedRole: Role; onAuthed?: (addr: string) => void } | null>(null);
   const signingRef = useRef(false);
@@ -52,18 +71,19 @@ export function WalletAuthProvider({ children }: { children: ReactNode }) {
     else localStorage.removeItem(ROLE_KEY);
   }, [role]);
 
-  // Auto-redirect: if on landing page and already authenticated with a saved role, go to dashboard
+  // Auto-redirect on page load if already authed
   useEffect(() => {
     if (isConnected && authenticated && role && location.pathname === "/") {
-      nav(`/dashboard/${role}`);
+      nav(`/dashboard/${role}`, { replace: true });
     }
   }, [isConnected, authenticated, role, location.pathname, nav]);
 
-  // After wallet connects with a pending auth, run sign-in flow
+  // After wallet connects with pending auth -> sign in
   useEffect(() => {
     if (!isConnected || !address || !pendingAuth || signingRef.current) return;
 
     signingRef.current = true;
+    setSigning(true);
     const pending = pendingAuth;
 
     (async () => {
@@ -82,17 +102,15 @@ export function WalletAuthProvider({ children }: { children: ReactNode }) {
         ].join("\n");
 
         const signature = await signMessageAsync({ account: address as `0x${string}`, message });
-
         const result = await fetchSignIn({ address, message, signature, nonceId }) as Record<string, unknown>;
 
         setAuthenticated(true);
         localStorage.setItem(AUTH_KEY, "true");
         setRole(pending.intendedRole);
         qc.invalidateQueries({ queryKey: ["me"] });
-
         setPendingAuth(null);
+        setSigning(false);
 
-        // Check if first-time user (no displayName yet)
         const user = result.user as Record<string, unknown> | undefined;
         if (!user?.displayName && !user?.onboarded) {
           setShowOnboarding(true);
@@ -102,29 +120,34 @@ export function WalletAuthProvider({ children }: { children: ReactNode }) {
         if (pending.onAuthed) {
           pending.onAuthed(address);
         } else {
-          nav(`/dashboard/${pending.intendedRole}`);
+          nav(`/dashboard/${pending.intendedRole}`, { replace: true });
         }
       } catch (err) {
         console.error("Sign-in failed:", err);
         setPendingAuth(null);
+        setSigning(false);
       } finally {
         signingRef.current = false;
       }
     })();
   }, [isConnected, address, pendingAuth, signMessageAsync, nav, qc]);
 
-  // Also check on meData load if user needs onboarding
+  // Check onboarding on meData load
   useEffect(() => {
-    if (authenticated && meUser && !meUser.onboarded && !meUser.displayName && !showOnboarding) {
+    if (authenticated && meUser && !meUser.onboarded && !meUser.displayName && !showOnboarding && !signing) {
       setShowOnboarding(true);
     }
-  }, [authenticated, meUser, showOnboarding]);
+  }, [authenticated, meUser, showOnboarding, signing]);
 
   const requireAuth = useCallback(
     (intendedRole: Role, onAuthed?: (addr: string) => void) => {
       if (isConnected && address && authenticated) {
         setRole(intendedRole);
-        onAuthed?.(address);
+        if (onAuthed) {
+          onAuthed(address);
+        } else {
+          nav(`/dashboard/${intendedRole}`, { replace: true });
+        }
         return;
       }
       setPendingAuth({ intendedRole, onAuthed });
@@ -132,7 +155,7 @@ export function WalletAuthProvider({ children }: { children: ReactNode }) {
         openConnectModal?.();
       }
     },
-    [isConnected, address, authenticated, openConnectModal],
+    [isConnected, address, authenticated, openConnectModal, nav],
   );
 
   const signOut = useCallback(() => {
@@ -152,12 +175,13 @@ export function WalletAuthProvider({ children }: { children: ReactNode }) {
   const handleOnboardingComplete = () => {
     setShowOnboarding(false);
     qc.invalidateQueries({ queryKey: ["me"] });
-    if (role) nav(`/dashboard/${role}`);
+    if (role) nav(`/dashboard/${role}`, { replace: true });
   };
 
   return (
     <Ctx.Provider value={{ connected: isConnected, address, authenticated, role, requireAuth, signOut }}>
       {children}
+      {signing && <SigningModal />}
       {showOnboarding && address && (
         <OnboardingModal address={address} onComplete={handleOnboardingComplete} />
       )}

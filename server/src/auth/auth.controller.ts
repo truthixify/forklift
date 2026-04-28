@@ -56,9 +56,9 @@ export class AuthController {
 
     res.cookie('session', token, {
       httpOnly: true,
-      secure: process.env['NODE_ENV'] === 'production',
+      secure: true,
       maxAge: 7 * 24 * 60 * 60 * 1000,
-      sameSite: 'lax',
+      sameSite: 'none',
     });
 
     const user = await this.prisma.user.findUnique({
