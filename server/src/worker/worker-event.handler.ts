@@ -32,90 +32,7 @@ export class WorkerEventHandler implements OnModuleInit {
 
   async onModuleInit() {
     this.lastCheckedTimestamp = Math.floor(Date.now() / 1000) - 3600;
-    this.logger.log('Worker started — will process existing unclaimed bounties + poll subgraph');
-
-    // Process existing unclaimed bounties from DB on startup
-    await this.processExistingBounties();
-  }
-
-  /**
-   * Periodically scan indexed bounties that have no proposals from active
-   * agents yet. Catches bounties missed on startup, and re-evaluates after
-   * an operator changes agent config (e.g. lowering minBountyUSDT).
-   */
-  @Cron(CronExpression.EVERY_30_SECONDS)
-  async processExistingBounties() {
-    const profiles = await this.getActiveAgentProfiles();
-    this.logger.log(`Found ${profiles.length} active agent(s): ${profiles.map((p) => `${p.displayName} (${p.passportAddress.slice(0, 10)})`).join(', ') || 'none'}`);
-    if (profiles.length === 0) {
-      this.logger.warn('No active agents — skipping existing bounty scan');
-      return;
-    }
-
-    const createdEvents = await this.prisma.indexedEvent.findMany({
-      where: { eventName: 'BountyCreated' },
-      orderBy: { indexedAt: 'asc' },
-    });
-
-    let claimed = 0;
-    let skippedAssigned = 0;
-    let skippedExisting = 0;
-    for (const event of createdEvents) {
-      const bountyId = event.bountyId;
-      if (!bountyId) continue;
-
-      // Skip if already assigned or settled
-      const assigned = await this.prisma.indexedEvent.findFirst({
-        where: { bountyId, eventName: { in: ['BountyAssigned', 'BountyPaid', 'BountyRefunded', 'BountyExpired', 'BountyCancelled'] } },
-      });
-      if (assigned) {
-        skippedAssigned++;
-        continue;
-      }
-
-      const signature = await this.prisma.bountySignature.findFirst({
-        where: { bountyId },
-      });
-
-      const data = event.data as Record<string, unknown>;
-      const rawAmount = data.amountUSDT;
-      const amount = typeof rawAmount === 'string' ? rawAmount
-        : typeof rawAmount === 'number' ? String(BigInt(Math.round(rawAmount)))
-        : '0';
-
-      this.logger.log(`Evaluating bounty ${bountyId.slice(0, 14)}… amount=${amount} title="${(signature?.title ?? 'unknown').slice(0, 30)}"`);
-
-      const bountyInfo = {
-        bountyId,
-        title: signature?.title ?? 'Unknown bounty',
-        description: signature?.description ?? '',
-        templateId: signature?.templateId ?? null,
-        deliverableKind: this.extractDeliverableKind(signature?.deliverableSchema),
-        amount,
-      };
-
-      for (const profile of profiles) {
-        const existing = await this.prisma.proposal.findFirst({
-          where: { bountyId, agentAddress: profile.passportAddress },
-        });
-        if (existing) {
-          skippedExisting++;
-          continue;
-        }
-
-        if (this.claimService.shouldClaim(profile, bountyInfo)) {
-          try {
-            await this.claimService.generateProposal(profile, bountyInfo);
-            claimed++;
-            this.logger.log(`Startup claim: ${profile.displayName} → ${bountyId}`);
-          } catch (error) {
-            this.logger.error(`Startup claim failed: ${profile.displayName} → ${bountyId}`, error);
-          }
-        }
-      }
-    }
-
-    this.logger.log(`Startup scan: ${claimed} claims, ${createdEvents.length} bounties, ${skippedAssigned} already assigned, ${skippedExisting} existing proposals`);
+    this.logger.log('Worker started');
   }
 
   @Cron(CronExpression.EVERY_10_SECONDS)
@@ -128,12 +45,10 @@ export class WorkerEventHandler implements OnModuleInit {
         this.lastCheckedTimestamp = ts;
       }
 
-      // Dedup via DB, not in-memory set
       const alreadyIndexed = await this.prisma.indexedEvent.findFirst({
         where: { bountyId: bounty.bountyId, eventName: 'BountyCreated' },
       });
 
-      // If already indexed, check if we still need to claim
       if (alreadyIndexed) {
         await this.claimIfNeeded(bounty.bountyId, bounty);
         continue;
@@ -153,6 +68,7 @@ export class WorkerEventHandler implements OnModuleInit {
       const bountyId = event.bountyId;
       if (!bountyId) continue;
 
+      // Already delivered — done
       const existingDelivery = await this.prisma.delivery.findFirst({
         where: { bountyId },
       });
@@ -162,13 +78,27 @@ export class WorkerEventHandler implements OnModuleInit {
       const assignedAgent = (data['assignedAgent'] as string) ?? '';
       if (!assignedAgent) continue;
 
-      // Check if work is already in progress (use DB, not in-memory)
+      // Check work runs — only skip if currently running
       const workRun = await this.prisma.workRun.findFirst({
         where: { bountyId },
+        orderBy: { startedAt: 'desc' },
       });
-      if (workRun) continue;
 
-      // Mark work as started
+      if (workRun) {
+        if (workRun.status === 'running') {
+          // Stale running work from a crashed server — reset after 5 min
+          const staleAfter = new Date(Date.now() - 5 * 60 * 1000);
+          if (workRun.startedAt > staleAfter) continue;
+          this.logger.warn(`Resetting stale work run for ${bountyId}`);
+          await this.prisma.workRun.delete({ where: { id: workRun.id } });
+        } else if (workRun.status === 'delivered') {
+          continue;
+        }
+        // status === 'failed' → allow retry by falling through
+      }
+
+      this.logger.log(`Starting work on assigned bounty ${bountyId} → agent ${assignedAgent.slice(0, 12)}`);
+
       await this.prisma.workRun.create({
         data: {
           bountyId,
@@ -220,7 +150,6 @@ export class WorkerEventHandler implements OnModuleInit {
   }
 
   private async claimIfNeeded(bountyId: string, event?: SubgraphBountyCreated) {
-    // Skip if already assigned
     const assigned = await this.prisma.indexedEvent.findFirst({
       where: { bountyId, eventName: { in: ['BountyAssigned', 'BountyPaid', 'BountyRefunded'] } },
     });
@@ -281,7 +210,6 @@ export class WorkerEventHandler implements OnModuleInit {
     };
 
     const profiles = await this.getActiveAgentProfiles();
-
     if (profiles.length === 0) {
       this.logger.warn(`No active agents to evaluate bounty ${event.bountyId}`);
       return;
@@ -299,21 +227,18 @@ export class WorkerEventHandler implements OnModuleInit {
         try {
           await this.claimService.generateProposal(profile, bountyInfo);
           claimCount++;
-          this.logger.log(
-            `${profile.displayName} proposed on ${event.bountyId}`,
-          );
         } catch (error) {
           this.logger.error(`${profile.displayName} failed to claim ${event.bountyId}`, error);
         }
       }
     }
 
-    this.logger.log(`Bounty ${event.bountyId}: ${claimCount} agent(s) claimed out of ${profiles.length} active`);
+    if (claimCount > 0) {
+      this.logger.log(`Bounty ${event.bountyId}: ${claimCount} agent(s) claimed`);
+    }
   }
 
   private async handleAssignment(bountyId: string, agentAddress: string) {
-    this.logger.log(`Processing assignment: ${agentAddress} assigned to ${bountyId}`);
-
     const signature = await this.prisma.bountySignature.findFirst({
       where: { bountyId },
     });
@@ -333,7 +258,7 @@ export class WorkerEventHandler implements OnModuleInit {
     });
 
     try {
-      this.logger.log(`Agent ${agentAddress} starting work on ${bountyId} (kind: ${deliverableKind})`);
+      this.logger.log(`Agent ${agentAddress.slice(0, 12)} working on ${bountyId.slice(0, 14)}… (${deliverableKind})`);
       const workResult = await dispatchWork(deliverableKind, title, description, llm);
 
       const delivery = await this.deliveryService.storeDelivery({
@@ -344,19 +269,20 @@ export class WorkerEventHandler implements OnModuleInit {
         attemptNumber: 1,
       });
 
-      this.logger.log(`Delivery stored for ${bountyId}: ${delivery.hash}`);
+      this.logger.log(`Delivery stored: ${bountyId.slice(0, 14)}… → ${delivery.hash.slice(0, 14)}…`);
 
       await this.prisma.workRun.updateMany({
         where: { bountyId, agentAddress },
-        data: { status: 'delivered' },
+        data: { status: 'delivered', finishedAt: new Date() },
       });
 
       await this.runVerification(bountyId, agentAddress, delivery.hash, title, description, signature, workResult);
     } catch (error) {
-      this.logger.error(`Work execution failed for ${bountyId} by ${agentAddress}`, error);
+      const msg = error instanceof Error ? error.message : String(error);
+      this.logger.error(`Work failed for ${bountyId.slice(0, 14)}…: ${msg}`);
       await this.prisma.workRun.updateMany({
         where: { bountyId, agentAddress },
-        data: { status: 'failed' },
+        data: { status: 'failed', finishedAt: new Date() },
       });
     }
   }
@@ -373,49 +299,34 @@ export class WorkerEventHandler implements OnModuleInit {
     const verConfig = (signature?.verifierConfig as Record<string, unknown>) ?? {};
     const verType = (verConfig.type as string) ?? 'llm-judge';
     const verConf = (verConfig.config as Record<string, unknown>) ?? {};
-
     const delivSchema = (signature?.deliverableSchema as Record<string, unknown>) ?? {};
 
     const result = await this.verifierRegistry.verify({
       delivery: {
-        hash: deliveryHash,
-        bountyId,
-        agentAddress,
-        payloadKind: workResult.payloadKind,
-        payload: workResult.payload,
-        attemptNumber: 1,
+        hash: deliveryHash, bountyId, agentAddress,
+        payloadKind: workResult.payloadKind, payload: workResult.payload, attemptNumber: 1,
       },
       bounty: {
-        bountyId,
-        title,
-        description,
-        deliverableSchema: delivSchema,
+        bountyId, title, description, deliverableSchema: delivSchema,
         verifierConfig: { type: verType, config: verConf },
       },
       config: verConf,
     });
 
     const resultHash = hashData(JSON.stringify({ bountyId, agentAddress, deliveryHash, result }));
-
     const llm = this.llmFactory.create();
 
     await this.prisma.verifierResult.create({
       data: {
-        hash: resultHash,
-        bountyId,
-        agentAddress,
-        deliveryHash,
-        verifierType: verType,
-        passed: result.passed,
-        score: result.score ?? null,
-        reasoning: result.reasoning,
+        hash: resultHash, bountyId, agentAddress, deliveryHash,
+        verifierType: verType, passed: result.passed,
+        score: result.score ?? null, reasoning: result.reasoning,
         evidence: result.evidence as Prisma.InputJsonValue,
-        brokerProvider: llm.provider,
-        brokerModel: llm.model,
+        brokerProvider: llm.provider, brokerModel: llm.model,
       },
     });
 
-    this.logger.log(`Verification for ${bountyId}: ${result.passed ? 'PASSED' : 'FAILED'} (score: ${result.score?.toFixed(2) ?? 'n/a'})`);
+    this.logger.log(`Verified ${bountyId.slice(0, 14)}…: ${result.passed ? 'PASS' : 'FAIL'} (${result.score?.toFixed(2) ?? 'n/a'})`);
 
     const posterEvent = await this.prisma.indexedEvent.findFirst({
       where: { bountyId, eventName: 'BountyCreated' },
