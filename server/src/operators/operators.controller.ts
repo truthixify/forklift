@@ -5,6 +5,7 @@ import { ApiTags } from '@nestjs/swagger';
 
 import { PrismaService } from '@forklift/database';
 import { ReputationService } from '@forklift/reputation';
+import { NotificationService } from '@forklift/notifications';
 import { AgentWalletService } from '@forklift/kite-identity';
 import type { Prisma } from '@prisma/client';
 
@@ -17,6 +18,7 @@ export class OperatorsController {
     private readonly prisma: PrismaService,
     private readonly agentWallet: AgentWalletService,
     private readonly reputationService: ReputationService,
+    private readonly notifications: NotificationService,
   ) {}
 
   @Post('agents')
@@ -94,6 +96,16 @@ export class OperatorsController {
     this.logger.log(
       `Agent created: ${agent.name} (${wallet.aaWalletAddress}) for operator ${body.operatorAddress}`,
     );
+
+    await this.notifications.notify({
+      userAddress: body.operatorAddress,
+      category: 'agent.assigned',
+      title: 'Agent deployed',
+      body: `${agentDisplayName} is live and listening for bounties.`,
+      payload: { agentAddress: agent.passportAddress },
+      ctaLabel: 'View agents',
+      ctaHref: '/dashboard/operator/agents',
+    });
 
     return {
       agent: {
