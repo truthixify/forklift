@@ -111,7 +111,7 @@ export function usePoster(address: string) {
 export function useMyAgents(operatorAddress: string) {
   return useQuery({
     queryKey: ['myAgents', operatorAddress],
-    queryFn: () => apiFetch(`/operators/me/agents`),
+    queryFn: () => apiFetch(`/operators/me/agents?address=${operatorAddress}`),
     enabled: !!operatorAddress,
   });
 }

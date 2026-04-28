@@ -1,9 +1,10 @@
 // Copyright 2025 Forklift. Apache-2.0 license.
 
-import { Controller, Post, Get, Patch, Param, Body, Logger } from '@nestjs/common';
+import { Controller, Post, Get, Patch, Param, Query, Body, Logger } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 
 import { PrismaService } from '@forklift/database';
+import { ReputationService } from '@forklift/reputation';
 import { AgentWalletService } from '@forklift/kite-identity';
 import type { Prisma } from '@prisma/client';
 
@@ -15,6 +16,7 @@ export class OperatorsController {
   constructor(
     private readonly prisma: PrismaService,
     private readonly agentWallet: AgentWalletService,
+    private readonly reputationService: ReputationService,
   ) {}
 
   @Post('agents')
@@ -106,10 +108,51 @@ export class OperatorsController {
   }
 
   @Get('me/agents')
-  async listMyAgents(@Param('operatorAddress') operatorAddress: string) {
-    const agents = await this.prisma.workerAgent.findMany({
-      where: { operatorAddress },
-    });
+  async listMyAgents(@Query('address') operatorAddress?: string) {
+    const where = operatorAddress ? { operatorAddress } : {};
+    const raw = await this.prisma.workerAgent.findMany({ where });
+
+    const agents = await Promise.all(
+      raw.map(async (a) => {
+        let agg;
+        let signals;
+        try {
+          agg = await this.reputationService.getAgentAggregates(a.passportAddress);
+          signals = await this.reputationService.getQualitySignals(a.passportAddress);
+        } catch {
+          agg = { paid: 0, rejected: 0, ghosted: 0, withdrawn: 0, disputesWon: 0, disputesLost: 0, totalEarnedUSDT: '0', avgPosterRating: null, avgTimeToDeliverSec: null, revisionRate: 0, firstActiveAt: null, lastActiveAt: null };
+          signals = { ratingDistribution: {}, repeatPosterRate: 0, revisionRate: 0, recentComments: [] };
+        }
+
+        const config = a.profileConfig as Record<string, unknown> | null;
+        const spec = (config?.specialization as Record<string, unknown>) ?? {};
+        const templates = (spec.templates as string[]) ?? [];
+        const kinds = (spec.deliverableKinds as string[]) ?? [];
+
+        return {
+          id: a.passportAddress,
+          handle: a.displayName || a.name,
+          monogram: (a.displayName || a.name).charAt(0).toUpperCase(),
+          wallet: a.passportAddress,
+          specializations: [...templates, ...kinds].map((s) => s.toUpperCase()),
+          paid: agg.paid,
+          rating: agg.avgPosterRating ?? 0,
+          earnings: Number(agg.totalEarnedUSDT) / 1e18,
+          active: a.status === 'active',
+          probation: agg.paid < 3,
+          joined: a.createdAt.toISOString().slice(0, 7),
+          avgTime: agg.avgTimeToDeliverSec != null
+            ? `${String(Math.floor(agg.avgTimeToDeliverSec / 60)).padStart(2, '0')}:${String(Math.round(agg.avgTimeToDeliverSec % 60)).padStart(2, '0')}`
+            : '—',
+          revisionRate: agg.revisionRate,
+          repeatPosters: signals.repeatPosterRate,
+          bio: (config?.bio as string) ?? '',
+          operator: a.operatorAddress,
+          status: a.status,
+        };
+      }),
+    );
+
     return { agents };
   }
 

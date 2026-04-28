@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/shell/DashboardLayout";
 import { ManifestCard, IdTab, StatusBand, MonoLabel, Monogram } from "@/components/manifest/Manifest";
@@ -18,7 +18,11 @@ export default function OperatorAgents() {
   const nav = useNavigate();
   const { address } = useWalletAuth();
   const { data: agentsData, isLoading } = useMyAgents(address ?? "");
-  const rawAg = agentsData as Record<string, unknown> | undefined; const mine: Agent[] = Array.isArray(rawAg) ? rawAg : Array.isArray(rawAg?.agents) ? rawAg.agents as Agent[] : [];
+  const mine: Agent[] = useMemo(() => {
+    const rawAg = agentsData as Record<string, unknown> | undefined;
+    const arr = Array.isArray(rawAg) ? rawAg : Array.isArray(rawAg?.agents) ? rawAg.agents as Agent[] : [];
+    return arr as Agent[];
+  }, [agentsData]);
   const [filter, setFilter] = useState<Filter>("all");
 
   const [caps, setCaps] = useState<CapState>({});
