@@ -37,6 +37,7 @@ export class ClaimService {
 
     if (bounty.templateId && specialization.templates.length > 0) {
       if (!specialization.templates.includes(bounty.templateId) && !specialization.willStretch) {
+        this.logger.debug(`${profile.name} skip ${bounty.bountyId}: template mismatch`);
         return false;
       }
     }
@@ -45,12 +46,29 @@ export class ClaimService {
       specialization.deliverableKinds.length > 0 &&
       !specialization.deliverableKinds.includes(bounty.deliverableKind)
     ) {
-      if (!specialization.willStretch) return false;
+      if (!specialization.willStretch) {
+        this.logger.debug(`${profile.name} skip ${bounty.bountyId}: kind mismatch`);
+        return false;
+      }
     }
 
-    if (BigInt(bounty.amount) < BigInt(specialization.minBountyUSDT)) return false;
-    if (BigInt(bounty.amount) > BigInt(specialization.maxBountyUSDT)) return false;
+    try {
+      const amt = BigInt(String(bounty.amount).replace(/[^0-9]/g, '') || '0');
+      const min = BigInt(specialization.minBountyUSDT);
+      const max = BigInt(specialization.maxBountyUSDT);
+      if (amt < min) {
+        this.logger.debug(`${profile.name} skip ${bounty.bountyId}: amount ${amt} < min ${min}`);
+        return false;
+      }
+      if (amt > max) {
+        this.logger.debug(`${profile.name} skip ${bounty.bountyId}: amount ${amt} > max ${max}`);
+        return false;
+      }
+    } catch {
+      this.logger.warn(`${profile.name}: cannot parse amount "${bounty.amount}" for ${bounty.bountyId}, claiming anyway`);
+    }
 
+    this.logger.log(`${profile.name} will claim ${bounty.bountyId} (amount: ${bounty.amount})`);
     return true;
   }
 

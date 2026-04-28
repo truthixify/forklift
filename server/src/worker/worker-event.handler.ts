@@ -45,6 +45,7 @@ export class WorkerEventHandler implements OnModuleInit {
    */
   private async processExistingBounties() {
     const profiles = await this.getActiveAgentProfiles();
+    this.logger.log(`Found ${profiles.length} active agent(s): ${profiles.map((p) => `${p.displayName} (${p.passportAddress.slice(0, 10)})`).join(', ') || 'none'}`);
     if (profiles.length === 0) {
       this.logger.warn('No active agents — skipping existing bounty scan');
       return;
@@ -56,6 +57,8 @@ export class WorkerEventHandler implements OnModuleInit {
     });
 
     let claimed = 0;
+    let skippedAssigned = 0;
+    let skippedExisting = 0;
     for (const event of createdEvents) {
       const bountyId = event.bountyId;
       if (!bountyId) continue;
@@ -64,27 +67,40 @@ export class WorkerEventHandler implements OnModuleInit {
       const assigned = await this.prisma.indexedEvent.findFirst({
         where: { bountyId, eventName: { in: ['BountyAssigned', 'BountyPaid', 'BountyRefunded', 'BountyExpired', 'BountyCancelled'] } },
       });
-      if (assigned) continue;
+      if (assigned) {
+        skippedAssigned++;
+        continue;
+      }
 
       const signature = await this.prisma.bountySignature.findFirst({
         where: { bountyId },
       });
 
       const data = event.data as Record<string, unknown>;
+      const rawAmount = data.amountUSDT;
+      const amount = typeof rawAmount === 'string' ? rawAmount
+        : typeof rawAmount === 'number' ? String(BigInt(Math.round(rawAmount)))
+        : '0';
+
+      this.logger.log(`Evaluating bounty ${bountyId.slice(0, 14)}… amount=${amount} title="${(signature?.title ?? 'unknown').slice(0, 30)}"`);
+
       const bountyInfo = {
         bountyId,
         title: signature?.title ?? 'Unknown bounty',
         description: signature?.description ?? '',
         templateId: signature?.templateId ?? null,
         deliverableKind: this.extractDeliverableKind(signature?.deliverableSchema),
-        amount: (data.amountUSDT as string) ?? '0',
+        amount,
       };
 
       for (const profile of profiles) {
         const existing = await this.prisma.proposal.findFirst({
           where: { bountyId, agentAddress: profile.passportAddress },
         });
-        if (existing) continue;
+        if (existing) {
+          skippedExisting++;
+          continue;
+        }
 
         if (this.claimService.shouldClaim(profile, bountyInfo)) {
           try {
@@ -98,7 +114,7 @@ export class WorkerEventHandler implements OnModuleInit {
       }
     }
 
-    this.logger.log(`Startup scan complete: ${claimed} new claims across ${createdEvents.length} bounties`);
+    this.logger.log(`Startup scan: ${claimed} claims, ${createdEvents.length} bounties, ${skippedAssigned} already assigned, ${skippedExisting} existing proposals`);
   }
 
   @Cron(CronExpression.EVERY_10_SECONDS)

@@ -3,8 +3,7 @@ import { AppShell } from "@/components/shell/AppShell";
 import { ManifestCard, IdTab, StatusBand, MonoLabel, PulseDot } from "@/components/manifest/Manifest";
 import { ActivityRow } from "@/components/manifest/ActivityRow";
 import { useRealFeed } from "@/hooks/useRealFeed";
-import { useBlockHeight } from "@/hooks/useLiveFeed";
-import { useFeed } from "@/lib/api";
+import { useFeed, useBlockHeight as useBlockHeightApi } from "@/lib/api";
 import type { FeedEvent } from "@/hooks/useRealFeed";
 import type { ActivityEvent } from "@/lib/types";
 
@@ -64,8 +63,8 @@ export default function LiveFeed() {
   const eventsHr = feedEvents.length;
   const paidToday = feedEvents.filter((e: unknown) => (e as { eventName?: string }).eventName === 'BountyPaid').length;
   const usdtToday = apiFeedEvents.reduce((sum, e) => sum + (e.amount ?? 0), 0);
-  const latestBlock = feedEvents.length > 0 ? Number((feedEvents[0] as Record<string, unknown>).blockNumber ?? 0) : 0;
-  const block = useBlockHeight(latestBlock || 4_827_193);
+  const { data: blockData } = useBlockHeightApi();
+  const block = Number(blockData?.blockNumber ?? 0);
 
   const events: ActivityEvent[] = wsConnected && wsEvents.length > 0
     ? wsEvents.map(feedEventToActivity)

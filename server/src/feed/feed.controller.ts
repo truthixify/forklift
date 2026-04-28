@@ -4,10 +4,13 @@ import { Controller, Get, Query } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 
 import { PrismaService } from '@forklift/database';
+import { createKitePublicClient } from '@forklift/chain';
 
 @ApiTags('feed')
 @Controller('feed')
 export class FeedController {
+  private readonly publicClient = createKitePublicClient();
+
   constructor(private readonly prisma: PrismaService) {}
 
   @Get()
@@ -19,5 +22,11 @@ export class FeedController {
     });
 
     return { events };
+  }
+
+  @Get('block-height')
+  async getBlockHeight() {
+    const blockNumber = await this.publicClient.getBlockNumber();
+    return { blockNumber: String(blockNumber) };
   }
 }

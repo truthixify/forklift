@@ -217,6 +217,14 @@ export function useFeed(params?: { limit?: string; since?: string }) {
   return useQuery({ queryKey: ['feed', params], queryFn: () => apiFetch(`/feed?${search}`), refetchInterval: 10_000 });
 }
 
+export function useBlockHeight() {
+  return useQuery({
+    queryKey: ['blockHeight'],
+    queryFn: () => apiFetch<{ blockNumber: string }>('/feed/block-height'),
+    refetchInterval: 5_000,
+  });
+}
+
 // Notifications
 export function useNotifications(userAddress: string, unread = false) {
   return useQuery({
