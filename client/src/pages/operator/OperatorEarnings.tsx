@@ -3,7 +3,7 @@ import { ManifestCard, IdTab, StatusBand, Brackets, MonoLabel, Tag, Monogram } f
 import { FlButton } from "@/components/manifest/FlButton";
 import { useMyAgents, useWithdrawEarnings, useEarnings } from "@/lib/api";
 import { useWalletAuth } from "@/components/auth/WalletAuth";
-import type { Agent } from "@/data/mock";
+import type { Agent } from "@/lib/types";
 
 export default function OperatorEarnings() {
   const { address } = useWalletAuth();

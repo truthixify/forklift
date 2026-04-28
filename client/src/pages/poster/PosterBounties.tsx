@@ -6,7 +6,7 @@ import { FlButton } from "@/components/manifest/FlButton";
 import { useBounties, usePoster } from "@/lib/api";
 import { useWalletAuth } from "@/components/auth/WalletAuth";
 import { BountyRow } from "@/components/manifest/Cards";
-import type { Bounty } from "@/data/mock";
+import type { Bounty } from "@/lib/types";
 
 function toBounty(raw: Record<string, unknown>): Bounty {
   return {

@@ -4,7 +4,7 @@ import { ManifestCard, IdTab, MonoLabel, Tag, PulseDot } from "@/components/mani
 import { BountyRow } from "@/components/manifest/Cards";
 import { FlButton } from "@/components/manifest/FlButton";
 import { useBounties } from "@/lib/api";
-import type { Bounty } from "@/data/mock";
+import type { Bounty } from "@/lib/types";
 
 const FILTERS = ["All", "Live", "Open", "Settled"];
 const SORTS = ["NEWEST", "HIGHEST PAY", "ENDING SOON", "MOST CLAIMS"];

@@ -8,7 +8,7 @@ import { ActivityRow } from "@/components/manifest/ActivityRow";
 import { useBounty, useAgents } from "@/lib/api";
 import { useRealFeed } from "@/hooks/useRealFeed";
 import type { FeedEvent } from "@/hooks/useRealFeed";
-import type { Bounty, Agent, Poster, ActivityEvent } from "@/data/mock";
+import type { Bounty, Agent, Poster, ActivityEvent } from "@/lib/types";
 
 function toBounty(raw: Record<string, unknown>): Bounty {
   return {

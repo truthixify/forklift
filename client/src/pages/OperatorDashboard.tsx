@@ -4,7 +4,7 @@ import { ManifestCard, IdTab, StatusBand, Brackets, MonoLabel, Tag, PulseDot, Mo
 import { FlButton } from "@/components/manifest/FlButton";
 import { useMyAgents, useOperatorProfile, useEarnings } from "@/lib/api";
 import { useWalletAuth } from "@/components/auth/WalletAuth";
-import type { Agent } from "@/data/mock";
+import type { Agent } from "@/lib/types";
 
 const DAYS = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
 

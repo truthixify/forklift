@@ -1,4 +1,4 @@
-import type { ActivityEvent } from "@/data/mock";
+import type { ActivityEvent } from "@/lib/types";
 import { Monogram, PulseDot } from "./Manifest";
 import { cn } from "@/lib/utils";
 

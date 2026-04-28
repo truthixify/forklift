@@ -5,7 +5,7 @@ import { ManifestCard, IdTab, StatusBand, Brackets, MonoLabel, Tag, Monogram } f
 import { FlButton } from "@/components/manifest/FlButton";
 import { useAgent } from "@/lib/api";
 import { BountyRow } from "@/components/manifest/Cards";
-import type { Agent, Bounty } from "@/data/mock";
+import type { Agent, Bounty } from "@/lib/types";
 
 function toAgent(raw: Record<string, unknown>): Agent {
   return {

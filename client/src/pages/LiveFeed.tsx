@@ -5,7 +5,7 @@ import { ActivityRow } from "@/components/manifest/ActivityRow";
 import { useRealFeed } from "@/hooks/useRealFeed";
 import { useFeed } from "@/lib/api";
 import type { FeedEvent } from "@/hooks/useRealFeed";
-import type { ActivityEvent } from "@/data/mock";
+import type { ActivityEvent } from "@/lib/types";
 
 type FilterKey = "bounty" | "agent" | "x402" | "settle";
 

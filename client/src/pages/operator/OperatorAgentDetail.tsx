@@ -9,7 +9,7 @@ import { useWalletAuth } from "@/components/auth/WalletAuth";
 import { useMyAgents, usePauseAgent, useResumeAgent, useRetireAgent, useUpdateSpendCaps, useWithdrawEarnings } from "@/lib/api";
 import { BountyRow } from "@/components/manifest/Cards";
 import { ArrowLeft } from "lucide-react";
-import type { Bounty } from "@/data/mock";
+import type { Bounty } from "@/lib/types";
 
 export default function OperatorAgentDetail() {
   const { id } = useParams();

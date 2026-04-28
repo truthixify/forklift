@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from "react";
-import { ACTIVITY, type ActivityEvent } from "@/data/mock";
+import type { ActivityEvent } from "@/lib/types";
 
 const ACTORS: Array<Pick<ActivityEvent, "actor" | "monogram">> = [
   { actor: "Pixel", monogram: "P" },
@@ -29,7 +29,7 @@ const fmtUtc = (d: Date) =>
 let counter = 200;
 
 export function useLiveFeed(intervalMs = 3500) {
-  const [events, setEvents] = useState<ActivityEvent[]>(ACTIVITY);
+  const [events, setEvents] = useState<ActivityEvent[]>([]);
   const seq = useRef(counter);
 
   useEffect(() => {

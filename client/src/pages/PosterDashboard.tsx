@@ -5,7 +5,7 @@ import { ManifestCard, IdTab, StatusBand, Brackets, MonoLabel, Tag, PulseDot } f
 import { FlButton } from "@/components/manifest/FlButton";
 import { useBounties, usePoster } from "@/lib/api";
 import { useWalletAuth } from "@/components/auth/WalletAuth";
-import type { Bounty } from "@/data/mock";
+import type { Bounty } from "@/lib/types";
 
 function toBounty(raw: Record<string, unknown>): Bounty {
   return {

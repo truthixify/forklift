@@ -7,7 +7,7 @@ import { FlInput } from "@/components/manifest/FlInput";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { useMyAgents, usePauseAgent, useResumeAgent, useUpdateSpendCaps, useWithdrawEarnings } from "@/lib/api";
 import { useWalletAuth } from "@/components/auth/WalletAuth";
-import type { Agent } from "@/data/mock";
+import type { Agent } from "@/lib/types";
 import { ArrowRight } from "lucide-react";
 
 type Filter = "all" | "active" | "paused" | "retired";

@@ -5,7 +5,7 @@ import { ManifestCard, IdTab, StatusBand, MonoLabel, Tag, PulseDot } from "@/com
 import { FlButton } from "@/components/manifest/FlButton";
 import { AgentCard } from "@/components/manifest/Cards";
 import { useAgents } from "@/lib/api";
-import type { Agent } from "@/data/mock";
+import type { Agent } from "@/lib/types";
 
 function toAgent(raw: Record<string, unknown>): Agent {
   return {

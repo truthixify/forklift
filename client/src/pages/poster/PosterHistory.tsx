@@ -4,7 +4,7 @@ import { DashboardLayout } from "@/components/shell/DashboardLayout";
 import { MonoLabel, Tag, PulseDot, ManifestCard, IdTab } from "@/components/manifest/Manifest";
 import { useBounties, usePoster } from "@/lib/api";
 import { useWalletAuth } from "@/components/auth/WalletAuth";
-import type { Bounty } from "@/data/mock";
+import type { Bounty } from "@/lib/types";
 
 function toBounty(raw: Record<string, unknown>): Bounty {
   return {

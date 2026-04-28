@@ -9,7 +9,7 @@ import { FlButton } from "@/components/manifest/FlButton";
 import { ForkliftGlyph } from "@/components/brand/Logo";
 import { useBounties, useTemplates } from "@/lib/api";
 import { useRealFeed } from "@/hooks/useRealFeed";
-import type { Bounty } from "@/data/mock";
+import type { Bounty } from "@/lib/types";
 
 interface TemplateItem {
   id: string;

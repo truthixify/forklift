@@ -4,7 +4,7 @@ import { AppShell } from "@/components/shell/AppShell";
 import { ManifestCard, IdTab, StatusBand, Brackets, MonoLabel, Monogram } from "@/components/manifest/Manifest";
 import { usePoster } from "@/lib/api";
 import { BountyRow } from "@/components/manifest/Cards";
-import type { Bounty } from "@/data/mock";
+import type { Bounty } from "@/lib/types";
 
 function toBounty(raw: Record<string, unknown>): Bounty {
   return {
