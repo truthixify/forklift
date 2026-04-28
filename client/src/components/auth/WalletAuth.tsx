@@ -71,12 +71,16 @@ export function WalletAuthProvider({ children }: { children: ReactNode }) {
     else localStorage.removeItem(ROLE_KEY);
   }, [role]);
 
-  // Auto-redirect on page load if already authed
+  // Auto-redirect only on first mount if already authed (not on intentional nav to /)
+  const didAutoRedirect = useRef(false);
   useEffect(() => {
+    if (didAutoRedirect.current) return;
     if (isConnected && authenticated && role && location.pathname === "/") {
+      didAutoRedirect.current = true;
       nav(`/dashboard/${role}`, { replace: true });
     }
-  }, [isConnected, authenticated, role, location.pathname, nav]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isConnected, authenticated]);
 
   // After wallet connects with pending auth -> sign in
   useEffect(() => {
