@@ -86,7 +86,7 @@ export class IndexerService implements OnModuleInit {
             body: `Your bounty is live on the board (${amtUsdt.toFixed(2)} USDT).`,
             payload: { bountyId: event.bountyId, amount: amtUsdt },
             ctaLabel: 'View bounty',
-            ctaHref: `/dashboard/poster/bounties?id=${event.bountyId}`,
+            ctaHref: `/dashboard/poster/bounties/${event.bountyId}`,
           });
         }
       } catch (error) {

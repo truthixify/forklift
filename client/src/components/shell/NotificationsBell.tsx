@@ -3,13 +3,14 @@ import { Link, useLocation } from "react-router-dom";
 import { Bell, Coins, FileCheck2, AlertTriangle, Sparkles, Wallet, Pause } from "lucide-react";
 import { MonoLabel } from "@/components/manifest/Manifest";
 import { cn } from "@/lib/utils";
-import { useNotifications, useMarkAllRead } from "@/lib/api";
+import { useNotifications, useMarkRead, useMarkAllRead } from "@/lib/api";
 import { useWalletAuth } from "@/components/auth/WalletAuth";
 
 type Role = "poster" | "operator";
 type Kind = "claim" | "delivered" | "paid" | "earned" | "cap" | "dispute";
 
 export type ActivityItem = {
+  id?: number;
   kind: Kind;
   body: string;
   ts: string;
@@ -64,6 +65,7 @@ function apiNotificationToItem(n: ApiNotification): ActivityItem {
   const group = CATEGORY_TO_GROUP[n.category] ?? "ACTIVITY";
   const ts = new Date(n.createdAt).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "UTC" });
   return {
+    id: n.id,
     kind,
     body: n.body || n.title,
     ts,
@@ -119,6 +121,7 @@ export function NotificationsBell() {
   const role: Role = pathname.startsWith("/dashboard/operator") ? "operator" : "poster";
   const { address } = useWalletAuth();
   const { data: notifData, isLoading } = useNotifications(address ?? "", false);
+  const markRead = useMarkRead();
   const markAllRead = useMarkAllRead();
 
   const items: ActivityItem[] = useMemo(() => {
@@ -189,7 +192,7 @@ export function NotificationsBell() {
                     {g.group}
                   </div>
                   {g.items.map((n, i) => (
-                    <ActivityRow key={i} n={n} onClick={() => setOpen(false)} />
+                    <ActivityRow key={i} n={n} onClick={() => { if (n.id && n.unread) markRead.mutate(n.id); setOpen(false); }} />
                   ))}
                 </div>
               ))

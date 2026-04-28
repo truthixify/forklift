@@ -23,6 +23,7 @@ import Resources from "./pages/Resources";
 import PostBounty from "./pages/PostBounty";
 import PosterDashboard from "./pages/PosterDashboard";
 import PosterBounties from "./pages/poster/PosterBounties";
+import PosterBountyDetail from "./pages/poster/PosterBountyDetail";
 import PosterHistory from "./pages/poster/PosterHistory";
 import PosterPost from "./pages/poster/PosterPost";
 import PosterSettings from "./pages/poster/PosterSettings";
@@ -62,7 +63,7 @@ const App = () => (
                 {/* Poster dashboard */}
                 <Route path="/dashboard/poster" element={<PosterDashboard />} />
                 <Route path="/dashboard/poster/bounties" element={<PosterBounties />} />
-                <Route path="/dashboard/poster/bounties/:id" element={<BountyDetail />} />
+                <Route path="/dashboard/poster/bounties/:id" element={<PosterBountyDetail />} />
                 <Route path="/dashboard/poster/history" element={<PosterHistory />} />
                 <Route path="/dashboard/poster/post" element={<PosterPost />} />
                 <Route path="/dashboard/poster/settings" element={<PosterSettings />} />

@@ -84,7 +84,7 @@ export class BountiesController {
         body: `"${title.slice(0, 60)}" is live. ${body.amount ?? 0} USDT escrowed.`,
         payload: { bountyId, amount: body.amount },
         ctaLabel: 'View bounty',
-        ctaHref: `/bounties/${bountyId}`,
+        ctaHref: `/dashboard/poster/bounties/${bountyId}`,
       });
     }
 
