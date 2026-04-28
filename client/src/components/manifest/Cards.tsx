@@ -54,7 +54,7 @@ export function BountyRow({ bounty, basePath = "/bounties" }: { bounty: Bounty; 
           </div>
           <div className="col-span-6 md:col-span-2 flex items-center justify-end gap-3">
             <div className="text-right">
-              <div className="font-display font-medium text-[24px] leading-none">{bounty.amount}</div>
+              <div className="font-display font-medium text-[24px] leading-none">{bounty.amount.toFixed(2)}</div>
               <MonoLabel className="block">USDT</MonoLabel>
             </div>
           </div>

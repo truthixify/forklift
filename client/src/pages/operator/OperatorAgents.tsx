@@ -144,7 +144,7 @@ export default function OperatorAgents() {
                   <div className="grid grid-cols-3 gap-3 mb-4">
                     <div><MonoLabel className="block">PAID</MonoLabel><span className="mono-inline">{a.paid}</span></div>
                     <div><MonoLabel className="block">RATING</MonoLabel><span className="mono-inline">{a.rating}★</span></div>
-                    <div><MonoLabel className="block">EARNED</MonoLabel><span className="mono-inline">{a.earnings.toFixed(0)}</span></div>
+                    <div><MonoLabel className="block">EARNED</MonoLabel><span className="mono-inline">{a.earnings.toFixed(2)}</span></div>
                   </div>
                   <MonoLabel className="block mb-2">TASK SPEND CAP · {todaySpend.toFixed(2)} / {cap.toFixed(2)} USDT</MonoLabel>
                   <div className="h-3 bg-paper border border-ink relative">

@@ -76,10 +76,10 @@ export default function OperatorEarnings() {
       {/* KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {[
-          ["MONTH · IN", `${month} USDT`, "30D ROLLING"],
-          ["LIFETIME · IN", `${lifetime.toLocaleString()} USDT`, "ALL AGENTS"],
-          ["PEAK DAY", `${peak} USDT`, "BEST 24H"],
-          ["AVG / DAY", `${daily.length > 0 ? (month / daily.length).toFixed(0) : 0} USDT`, "30D AVG"],
+          ["MONTH · IN", `${month.toFixed(2)} USDT`, "30D ROLLING"],
+          ["LIFETIME · IN", `${lifetime.toFixed(2)} USDT`, "ALL AGENTS"],
+          ["PEAK DAY", `${peak.toFixed(2)} USDT`, "BEST 24H"],
+          ["AVG / DAY", `${daily.length > 0 ? (month / daily.length).toFixed(2) : '0.00'} USDT`, "30D AVG"],
         ].map(([l, v, s]) => (
           <div key={l} className="border-2 border-ink p-5">
             <MonoLabel ink className="block">{l}</MonoLabel>
@@ -98,7 +98,7 @@ export default function OperatorEarnings() {
                 key={i}
                 className={`flex-1 ${v === peak ? "bg-hivis" : "bg-cobalt"}`}
                 style={{ height: `${(v / Math.max(peak, 1)) * 100}%` }}
-                title={`Day ${i + 1}: ${v} USDT`}
+                title={`Day ${i + 1}: ${v.toFixed(2)} USDT`}
               />
             ))}
           </div>
@@ -137,7 +137,7 @@ export default function OperatorEarnings() {
                     <td className="p-4 mono-small text-muted-ink">{a.specializations[0]}</td>
                     <td className="p-4 text-right tabular-nums">{a.paid}</td>
                     <td className="p-4 text-right tabular-nums">{a.rating}★</td>
-                    <td className="p-4 text-right tabular-nums">{agentEarnings.toFixed(0)} USDT</td>
+                    <td className="p-4 text-right tabular-nums">{agentEarnings.toFixed(2)} USDT</td>
                     <td className="p-4 text-right">
                       <div className="inline-flex items-center gap-2">
                         <div className="w-20 h-2 bg-paper border border-ink relative">
@@ -172,7 +172,7 @@ export default function OperatorEarnings() {
                 <tr key={w.id} className="border-b border-hairline hover:bg-hairline/30">
                   <td className="p-4 mono-inline">{w.id}</td>
                   <td className="p-4 mono-small">{w.ts}</td>
-                  <td className="p-4 text-right tabular-nums">{w.amount} USDT</td>
+                  <td className="p-4 text-right tabular-nums">{typeof w.amount === 'number' ? w.amount.toFixed(2) : w.amount} USDT</td>
                   <td className="p-4 mono-inline text-cobalt">{w.tx}</td>
                   <td className="p-4"><Tag variant="lime">SETTLED</Tag></td>
                 </tr>

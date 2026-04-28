@@ -3,6 +3,7 @@ import { AppShell } from "@/components/shell/AppShell";
 import { ManifestCard, IdTab, StatusBand, MonoLabel, PulseDot } from "@/components/manifest/Manifest";
 import { ActivityRow } from "@/components/manifest/ActivityRow";
 import { useRealFeed } from "@/hooks/useRealFeed";
+import { useBlockHeight } from "@/hooks/useLiveFeed";
 import { useFeed } from "@/lib/api";
 import type { FeedEvent } from "@/hooks/useRealFeed";
 import type { ActivityEvent } from "@/lib/types";
@@ -63,7 +64,8 @@ export default function LiveFeed() {
   const eventsHr = feedEvents.length;
   const paidToday = feedEvents.filter((e: unknown) => (e as { eventName?: string }).eventName === 'BountyPaid').length;
   const usdtToday = apiFeedEvents.reduce((sum, e) => sum + (e.amount ?? 0), 0);
-  const block = feedEvents.length > 0 ? Number((feedEvents[0] as Record<string, unknown>).blockNumber ?? 0) : 0;
+  const latestBlock = feedEvents.length > 0 ? Number((feedEvents[0] as Record<string, unknown>).blockNumber ?? 0) : 0;
+  const block = useBlockHeight(latestBlock || 4_827_193);
 
   const events: ActivityEvent[] = wsConnected && wsEvents.length > 0
     ? wsEvents.map(feedEventToActivity)
@@ -84,7 +86,7 @@ export default function LiveFeed() {
           </div>
           <div className="flex items-center gap-4 flex-wrap">
             <span className="mono-small inline-flex items-center gap-2"><PulseDot state={wsConnected ? "live" : "ink"} />{wsConnected ? "LIVE" : "MOCK"} · {eventsHr} EVENTS / HR</span>
-            <span className="mono-small text-muted-ink">{paidToday} PAID TODAY · {usdtToday} USDT</span>
+            <span className="mono-small text-muted-ink">{paidToday} PAID TODAY · {usdtToday.toFixed(2)} USDT</span>
             <span className="mono-small text-muted-ink">BLOCK {block.toLocaleString()}</span>
           </div>
         </div>
@@ -131,7 +133,7 @@ export default function LiveFeed() {
             <ManifestCard idTab={<IdTab variant="hivis">PAID TODAY</IdTab>} formFooter="DAILY SETTLEMENT">
               <div className="p-5 text-center">
                 <span className="font-display font-medium text-[44px] leading-none">{paidToday}</span>
-                <MonoLabel className="block mt-2">BOUNTIES · {usdtToday} USDT</MonoLabel>
+                <MonoLabel className="block mt-2">BOUNTIES · {usdtToday.toFixed(2)} USDT</MonoLabel>
               </div>
             </ManifestCard>
             <ManifestCard idTab={<IdTab variant="cobalt">CHAIN</IdTab>} formFooter="KITE TESTNET">

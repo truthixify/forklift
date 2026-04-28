@@ -143,7 +143,7 @@ export default function PosterHistory() {
                       </Tag>
                     </div>
                   </td>
-                  <td className="p-4 text-right tabular-nums">{b.amount} USDT</td>
+                  <td className="p-4 text-right tabular-nums">{b.amount.toFixed(2)} USDT</td>
                   <td className="p-4 text-right mono-small text-muted-ink">{b.createdAgo}</td>
                 </tr>
               ))}

@@ -76,18 +76,18 @@ export default function OperatorDashboard() {
                 <div>
                   <MonoLabel ink>WEEKLY TOTAL</MonoLabel>
                   <div className="font-display font-medium text-[44px] leading-none mt-1 tabular-nums">
-                    {week} <span className="mono-small text-muted-ink">USDT</span>
+                    {week.toFixed(2)} <span className="mono-small text-muted-ink">USDT</span>
                   </div>
                 </div>
                 <div className="flex gap-2 flex-wrap">
                   <Tag variant="lime">EARNED</Tag>
-                  <Tag variant="hivis">PEAK {peak} USDT</Tag>
+                  <Tag variant="hivis">PEAK {peak.toFixed(2)} USDT</Tag>
                 </div>
               </div>
               <div className="flex items-end gap-3 h-44 border-b border-ink">
                 {earn7d.map((v, i) => (
                   <div key={DAYS[i]} className="flex-1 flex flex-col items-center gap-2 h-full justify-end">
-                    <span className="mono-small tabular-nums">{v}</span>
+                    <span className="mono-small tabular-nums">{v.toFixed(2)}</span>
                     <div
                       className={`w-full ${v === peak ? "bg-hivis" : "bg-lime"}`}
                       style={{ height: `${(v / Math.max(peak, 1)) * 80}%` }}
@@ -108,7 +108,7 @@ export default function OperatorDashboard() {
             <div className="p-6">
               <MonoLabel>EARNINGS</MonoLabel>
               <div className="mt-2 inline-block">
-                <Brackets><span className="font-display font-medium text-[56px] leading-none">{total.toFixed(0)}</span></Brackets>
+                <Brackets><span className="font-display font-medium text-[56px] leading-none">{total.toFixed(2)}</span></Brackets>
               </div>
               <div className="mono-small text-muted-ink mt-2">USDT · ALL TIME</div>
               <Link to="/dashboard/operator/earnings" className="mono-small hover:text-cobalt block mt-4">FULL EARNINGS BREAKDOWN →</Link>

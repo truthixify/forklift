@@ -209,7 +209,7 @@ export default function BountyDetail() {
                 <div className="col-span-12 md:col-span-7">
                   <MonoLabel>BOUNTY AMOUNT · ESCROWED</MonoLabel>
                   <div className="mt-3 flex items-baseline gap-3">
-                    <Brackets><span className="text-[80px] font-display font-medium leading-none">{bounty.amount}</span></Brackets>
+                    <Brackets><span className="text-[80px] font-display font-medium leading-none">{bounty.amount.toFixed(2)}</span></Brackets>
                     <span className="mono-small text-muted-ink">USDT</span>
                   </div>
                   <MonoLabel className="block mt-3">+ 5% CREATION FEE · 10% PAYOUT FEE ON SETTLEMENT</MonoLabel>

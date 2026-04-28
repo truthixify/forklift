@@ -113,19 +113,19 @@ export default function PosterDashboard() {
                 <div>
                   <MonoLabel ink>WEEKLY TOTAL</MonoLabel>
                   <div className="font-display font-medium text-[44px] leading-none mt-1 tabular-nums">
-                    {totalSpend} <span className="mono-small text-muted-ink">USDT</span>
+                    {totalSpend.toFixed(2)} <span className="mono-small text-muted-ink">USDT</span>
                   </div>
                 </div>
                 <div className="flex gap-2 flex-wrap">
                   <Tag variant="cobalt">PAID</Tag>
                   <Tag>POSTED</Tag>
-                  <Tag variant="hivis">PEAK {peak} USDT</Tag>
+                  <Tag variant="hivis">PEAK {peak.toFixed(2)} USDT</Tag>
                 </div>
               </div>
               <div className="flex items-end gap-3 h-44 border-b border-ink">
                 {spendByDay.map((v, i) => (
                   <div key={DAYS[i]} className="flex-1 flex flex-col items-center gap-2 h-full justify-end">
-                    <span className="mono-small tabular-nums">{v}</span>
+                    <span className="mono-small tabular-nums">{v.toFixed(2)}</span>
                     <div
                       className={`w-full ${v === peak ? "bg-hivis" : "bg-cobalt"}`}
                       style={{ height: `${(v / Math.max(peak, 1)) * 80}%` }}
@@ -148,7 +148,7 @@ export default function PosterDashboard() {
                 <li key={b.id} className="px-5 py-3 border-b border-hairline last:border-b-0 flex items-center gap-3">
                   <PulseDot state="delivered" />
                   <Link to={`/bounties/${b.id}`} className="flex-1 text-[14px] hover:text-cobalt truncate font-display font-medium">{b.title}</Link>
-                  <span className="mono-small">{b.amount} USDT</span>
+                  <span className="mono-small">{b.amount.toFixed(2)} USDT</span>
                 </li>
               ))}
               {reviewQ.length === 0 && (
@@ -178,7 +178,7 @@ export default function PosterDashboard() {
               <MonoLabel>TOTAL SPEND</MonoLabel>
               <div className="mt-1 inline-block">
                 <Brackets>
-                  <span className="font-display font-medium text-[44px] leading-none">{totalSpentAll}</span>
+                  <span className="font-display font-medium text-[44px] leading-none">{totalSpentAll.toFixed(2)}</span>
                 </Brackets>
               </div>
               <div className="mono-small text-muted-ink mt-2">USDT · {paidCount} PAID BOUNTIES</div>
