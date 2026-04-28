@@ -8,6 +8,11 @@ import * as cookieParser from 'cookie-parser';
 
 import { AppModule } from './app.module';
 
+// BigInt JSON serialization support
+(BigInt.prototype as unknown as { toJSON: () => string }).toJSON = function () {
+  return this.toString();
+};
+
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.useWebSocketAdapter(new WsAdapter(app));

@@ -77,20 +77,23 @@ export function PostBountyForm({ dashboardHref = "/dashboard/poster" }: Props) {
   useEffect(() => {
     if (stage !== 1.5) return;
     setTraceLine(0);
+
+    let line = 0;
     const id = setInterval(() => {
-      setTraceLine((n) => {
-        if (n >= parseTrace.length) {
-          clearInterval(id);
-          setTimeout(() => setStage(2), 350);
-          return n;
-        }
-        return n + 1;
-      });
-    }, 280);
+      if (line < parseTrace.length) {
+        line++;
+        setTraceLine(line);
+      } else if (draft) {
+        clearInterval(id);
+        setTimeout(() => setStage(2), 400);
+      }
+    }, 320);
+
     return () => clearInterval(id);
-  }, [stage, parseTrace.length]);
+  }, [stage, parseTrace.length, draft]);
 
   function handleParseAndReview() {
+    setStage(1.5);
     createDraft.mutate(
       { brief, templateHint: template ?? undefined },
       {
@@ -103,11 +106,9 @@ export function PostBountyForm({ dashboardHref = "/dashboard/poster" }: Props) {
             const usdt = num > 1e15 ? num / 1e18 : num;
             setAmount(String(Math.round(usdt * 100) / 100));
           }
-          setStage(1.5);
         },
         onError: () => {
           setDraft(null);
-          setStage(1.5);
         },
       },
     );
@@ -265,6 +266,20 @@ export function PostBountyForm({ dashboardHref = "/dashboard/poster" }: Props) {
                   <span className="ml-2 inline-block w-2 h-4 bg-hivis animate-pulse" />
                 </div>
               )}
+              {traceLine >= parseTrace.length && !draft && (
+                <div className="flex items-center gap-3 text-hivis mt-2">
+                  <span>›</span>
+                  <span>WAITING FOR BROKER RESPONSE</span>
+                  <span className="ml-2 inline-block w-2 h-4 bg-hivis animate-pulse" />
+                </div>
+              )}
+              {traceLine >= parseTrace.length && draft && (
+                <div className="flex items-start gap-3 text-lime mt-2">
+                  <span>›</span>
+                  <span>DRAFT READY · MOVING TO REVIEW</span>
+                  <span className="ml-auto">✓</span>
+                </div>
+              )}
             </div>
             <div className="hairline-sweep mt-5" />
             <div className="mt-3 flex items-center justify-between">
@@ -341,8 +356,8 @@ export function PostBountyForm({ dashboardHref = "/dashboard/poster" }: Props) {
             <h2 className="display-hero text-[64px] font-medium leading-tight">Bounty posted.</h2>
             <p className="mt-4 text-[18px] text-muted-ink">Agents are scanning. Claim window closes in 2 hours.</p>
             <div className="mt-8 flex justify-center gap-3">
-              <FlButton variant="cobalt" onClick={() => nav(`/bounties/${confirmedId ?? ""}`)}>View bounty</FlButton>
-              <FlButton variant="secondary" onClick={() => nav(dashboardHref)}>Open dashboard</FlButton>
+              <FlButton variant="cobalt" onClick={() => nav(`/dashboard/poster/bounties?id=${confirmedId ?? ""}`)}>View bounty</FlButton>
+              <FlButton variant="secondary" onClick={() => { setStage(1); setDraft(null); setConfirmedId(null); setConfirmedShortId(null); setBrief(""); setAmount("25"); setTemplate(null); }}>Post another bounty</FlButton>
             </div>
           </div>
         </ManifestCard>
