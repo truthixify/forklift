@@ -32,7 +32,11 @@ export class WorkerEventHandler implements OnModuleInit {
 
   async onModuleInit() {
     this.lastCheckedTimestamp = Math.floor(Date.now() / 1000) - 3600;
-    this.logger.log('Worker started');
+
+    const assigned = await this.prisma.indexedEvent.count({ where: { eventName: 'BountyAssigned' } });
+    const delivered = await this.prisma.delivery.count();
+    const pending = assigned - delivered;
+    this.logger.log(`Worker started — ${assigned} assigned, ${delivered} delivered, ${pending} pending work`);
   }
 
   @Cron(CronExpression.EVERY_10_SECONDS)
