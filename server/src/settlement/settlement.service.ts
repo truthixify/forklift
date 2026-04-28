@@ -1,6 +1,6 @@
 // Copyright 2025 Forklift. Apache-2.0 license.
 
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, type OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { Prisma } from '@prisma/client';
 
@@ -16,7 +16,7 @@ import {
 } from '@forklift/chain';
 
 @Injectable()
-export class SettlementService {
+export class SettlementService implements OnModuleInit {
   private readonly logger = new Logger(SettlementService.name);
 
   constructor(
@@ -24,6 +24,43 @@ export class SettlementService {
     private readonly config: ConfigService,
     private readonly notifications: NotificationService,
   ) {}
+
+  async onModuleInit() {
+    await this.backfillZeroEarnings();
+  }
+
+  private async backfillZeroEarnings() {
+    const zeroRecords = await this.prisma.bountyRecord.findMany({
+      where: { outcome: 'paid', netUsdt: 0 },
+    });
+
+    for (const r of zeroRecords) {
+      const createdEvent = await this.prisma.indexedEvent.findFirst({
+        where: { bountyId: r.bountyId, eventName: 'BountyCreated' },
+      });
+      const evData = (createdEvent?.data as Record<string, unknown>) ?? {};
+      const amountStr = (evData.amountUSDT as string) ?? '0';
+      if (amountStr === '0') continue;
+
+      const gross = BigInt(amountStr);
+      const fees = (gross * 1000n) / 10000n;
+      const net = gross - fees;
+
+      await this.prisma.bountyRecord.update({
+        where: { bountyId_side_party: { bountyId: r.bountyId, side: r.side, party: r.party } },
+        data: {
+          amountUsdt: amountStr,
+          feesUsdt: fees.toString(),
+          netUsdt: r.side === 'agent' ? net.toString() : amountStr,
+        },
+      });
+      this.logger.log(`Backfilled earnings for ${r.bountyId.slice(0, 14)}… (${r.side}): ${Number(net) / 1e18} USDT`);
+    }
+
+    if (zeroRecords.length > 0) {
+      this.logger.log(`Backfilled ${zeroRecords.length} bounty records with correct amounts`);
+    }
+  }
 
   async release(bountyId: string, agentAddress: string, reason: string): Promise<string | null> {
     const settlementData = { action: 'release', bountyId, agentAddress, reason, at: Date.now() };

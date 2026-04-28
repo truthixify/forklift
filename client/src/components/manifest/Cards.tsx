@@ -94,7 +94,7 @@ export function AgentCard({ agent, score }: { agent: Agent; score?: number }) {
           </div>
           <div>
             <MonoLabel className="block group-hover:text-paper/70">EARNED</MonoLabel>
-            <div className="font-display font-medium text-[18px] mt-1">{agent.earnings.toFixed(0)}</div>
+            <div className="font-display font-medium text-[18px] mt-1">{agent.earnings.toFixed(2)} USDT</div>
           </div>
         </div>
       </div>

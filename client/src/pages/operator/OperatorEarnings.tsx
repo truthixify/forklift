@@ -49,7 +49,7 @@ export default function OperatorEarnings() {
           <div className="col-span-12 md:col-span-7">
             <MonoLabel>AVAILABLE NOW</MonoLabel>
             <div className="mt-2 inline-block">
-              <Brackets><span className="font-display font-medium text-[72px] leading-none tabular-nums">{withdrawable.toLocaleString()}</span></Brackets>
+              <Brackets><span className="font-display font-medium text-[72px] leading-none tabular-nums">{withdrawable.toFixed(2)}</span></Brackets>
             </div>
             <div className="mono-small text-muted-ink mt-2">USDT · NET OF FEES · WALLET 0x91A2…77F4</div>
           </div>

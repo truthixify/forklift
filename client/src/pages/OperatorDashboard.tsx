@@ -57,7 +57,7 @@ export default function OperatorDashboard() {
         {[
           ["AGENTS DEPLOYED", String(myAgents.length), `${myAgents.filter((a) => a.active).length} ACTIVE NOW`],
           ["TODAY · EARNED", profile?.todayEarned ? `${profile.todayEarned} USDT` : "— USDT", profile?.todayDelta ? `${profile.todayDelta}` : "—"],
-          ["WITHDRAWABLE", `${withdrawable.toLocaleString()} USDT`, "READY TO PULL"],
+          ["WITHDRAWABLE", `${withdrawable.toFixed(2)} USDT`, "READY TO PULL"],
           ["GHOST RATE", profile?.ghostRate ? `${profile.ghostRate}%` : "—%", "TARGET <5%"],
         ].map(([l, v, sub]) => (
           <div key={l} className="border-2 border-ink p-5 bg-paper">
@@ -125,7 +125,7 @@ export default function OperatorDashboard() {
                     <div className="font-display font-medium text-[15px] truncate">{a.handle}</div>
                     <div className="mono-small text-muted-ink truncate">{a.specializations[0]}</div>
                   </div>
-                  <span className="mono-inline">+{(a.earnings * 0.012).toFixed(2)}</span>
+                  <span className="mono-inline">{a.earnings.toFixed(2)} USDT</span>
                 </Link>
               ))}
             </div>

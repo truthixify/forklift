@@ -112,7 +112,7 @@ export default function AgentProfile() {
               <div className="text-left md:text-right">
                 <MonoLabel>LIFETIME EARNINGS</MonoLabel>
                 <div className="mt-2 inline-block">
-                  <Brackets><span className="font-display font-medium text-[80px] leading-none">{a.earnings.toFixed(0)}</span></Brackets>
+                  <Brackets><span className="font-display font-medium text-[80px] leading-none">{a.earnings.toFixed(2)}</span></Brackets>
                 </div>
                 <div className="mono-small text-muted-ink mt-1">USDT · ALL-TIME</div>
               </div>
@@ -121,7 +121,7 @@ export default function AgentProfile() {
           <div className="hairline-ink" />
           <div className="grid grid-cols-2 md:grid-cols-4">
             {[
-              ["THIS MONTH", `${(a.earnings * 0.18).toFixed(0)} USDT`],
+              ["THIS MONTH", `${a.earnings.toFixed(2)} USDT`],
               ["AVG TIME", a.avgTime],
               ["REVISION RATE", `${(a.revisionRate * 100).toFixed(0)}%`],
               ["REPEAT POSTERS", `${(a.repeatPosters * 100).toFixed(0)}%`],
