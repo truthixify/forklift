@@ -99,6 +99,7 @@ export function PostBountyForm({ dashboardHref = "/dashboard/poster" }: Props) {
   }, [stage, parseTrace.length, draft]);
 
   function handleParseAndReview() {
+    setDraft(null);
     setStage(1.5);
     createDraft.mutate(
       { brief, templateHint: template ?? undefined },
@@ -181,7 +182,6 @@ export function PostBountyForm({ dashboardHref = "/dashboard/poster" }: Props) {
     } catch (err) {
       console.error("Bounty creation failed:", err);
       setTxStep(null);
-      setStage(3);
     }
   }
 

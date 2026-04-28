@@ -52,14 +52,16 @@ export class BountiesController {
       verifierConfig?: Record<string, unknown>;
     },
   ) {
-    const bountyId = hashData(`bounty-${Date.now()}-${body.posterAddress ?? 'anon'}-${Math.random()}`);
+    const nonce = `${Date.now()}-${Math.random()}`;
+    const bountyId = hashData(`bounty-${nonce}-${body.posterAddress ?? 'anon'}`);
+    const sigHash = hashData(`sig-${nonce}-${bountyId}`);
     const title = body.title ?? body.brief.slice(0, 200);
     const description = body.description ?? body.brief;
     const shortNum = bountyId.slice(-4).toUpperCase();
 
     const signature = await this.prisma.bountySignature.create({
       data: {
-        hash: hashData(JSON.stringify(body)),
+        hash: sigHash,
         bountyId,
         title,
         description,
