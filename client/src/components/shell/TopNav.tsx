@@ -1,13 +1,35 @@
 import { useState } from "react";
 import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import { Menu, X, ChevronDown } from "lucide-react";
+import {
+  LayoutGrid, ListChecks, History, PlusSquare,
+  Settings as SettingsIcon, Bot, Wallet, Rocket, Activity, LogOut, ArrowLeftRight,
+} from "lucide-react";
 import { ForkliftGlyph, ForkliftWordmark } from "@/components/brand/Logo";
 import { FlButton } from "@/components/manifest/FlButton";
-import { Monogram } from "@/components/manifest/Manifest";
+import { Monogram, MonoLabel } from "@/components/manifest/Manifest";
 import { NotificationsBell } from "@/components/shell/NotificationsBell";
 import { useWalletAuth } from "@/components/auth/WalletAuth";
 import { useMe } from "@/lib/api";
 import { cn } from "@/lib/utils";
+
+const POSTER_MOBILE_NAV = [
+  { to: "/dashboard/poster", label: "Overview", icon: LayoutGrid },
+  { to: "/dashboard/poster/bounties", label: "My bounties", icon: ListChecks },
+  { to: "/dashboard/poster/history", label: "History", icon: History },
+  { to: "/dashboard/poster/activity", label: "Activity", icon: Activity },
+  { to: "/dashboard/poster/post", label: "Post a bounty", icon: PlusSquare },
+  { to: "/dashboard/poster/settings", label: "Settings", icon: SettingsIcon },
+];
+
+const OPERATOR_MOBILE_NAV = [
+  { to: "/dashboard/operator", label: "Overview", icon: LayoutGrid },
+  { to: "/dashboard/operator/agents", label: "My agents", icon: Bot },
+  { to: "/dashboard/operator/earnings", label: "Earnings", icon: Wallet },
+  { to: "/dashboard/operator/activity", label: "Activity", icon: Activity },
+  { to: "/dashboard/operator/deploy", label: "Deploy agent", icon: Rocket },
+  { to: "/dashboard/operator/settings", label: "Settings", icon: SettingsIcon },
+];
 
 type NavChild = { to: string; label: string; desc?: string; auth?: "poster" | "operator" };
 type NavItem = { label: string; to?: string; children?: NavChild[] };
@@ -65,7 +87,7 @@ export function TopNav() {
   const [openGroup, setOpenGroup] = useState<string | null>(null);
   const inApp = isInApp(pathname);
   const role = getRole(pathname);
-  const { connected, address, requireAuth } = useWalletAuth();
+  const { connected, address, requireAuth, signOut } = useWalletAuth();
   const { data: meData } = useMe();
   const meUser = (meData as Record<string, unknown>)?.user as Record<string, unknown> | undefined;
   const profileMonogram = (meUser?.displayName as string)?.charAt(0)?.toUpperCase() ?? address?.charAt(2)?.toUpperCase() ?? "?";
@@ -229,67 +251,94 @@ export function TopNav() {
               </button>
             </div>
             <div className="p-5 space-y-7">
-              {NAV.map((n) =>
-                n.children ? (
-                  <div key={n.label}>
-                    <div className="mono-label-ink mb-3">{n.label}</div>
-                    <ul className="space-y-3 border-l border-ink pl-4">
-                      {n.children.map((c) =>
-                        c.auth ? (
-                          <li key={c.to}>
-                            <button
-                              onClick={() => handleAuthLink(c.to, c.auth!)}
-                              className="block text-left w-full"
-                            >
-                              <div className="font-display font-medium text-[16px] text-ink">
-                                {c.label}
-                              </div>
-                              {c.desc && (
-                                <div className="mono-small text-muted-ink mt-0.5">{c.desc}</div>
-                              )}
-                            </button>
-                          </li>
-                        ) : (
-                          <li key={c.to}>
-                            <Link
-                              to={c.to}
-                              onClick={() => setMobileOpen(false)}
-                              className="block"
-                            >
-                              <div className="font-display font-medium text-[16px] text-ink">
-                                {c.label}
-                              </div>
-                              {c.desc && (
-                                <div className="mono-small text-muted-ink mt-0.5">{c.desc}</div>
-                              )}
-                            </Link>
-                          </li>
-                        ),
-                      )}
-                    </ul>
+              {inApp ? (
+                <>
+                  <div>
+                    <MonoLabel ink className="block mb-3">{role.toUpperCase()} DESK</MonoLabel>
+                    <nav className="space-y-1">
+                      {(role === "operator" ? OPERATOR_MOBILE_NAV : POSTER_MOBILE_NAV).map((item) => {
+                        const Icon = item.icon;
+                        const active = pathname === item.to || (item.to !== `/dashboard/${role}` && pathname.startsWith(item.to));
+                        return (
+                          <Link
+                            key={item.to}
+                            to={item.to}
+                            onClick={() => setMobileOpen(false)}
+                            className={cn(
+                              "flex items-center gap-3 h-11 px-4 border border-ink -mt-px first:mt-0",
+                              active ? "bg-ink text-paper" : "bg-paper hover:bg-hairline/40",
+                            )}
+                          >
+                            <Icon size={16} strokeWidth={1.75} />
+                            <span className="font-display font-medium text-[15px]">{item.label}</span>
+                          </Link>
+                        );
+                      })}
+                    </nav>
                   </div>
-                ) : (
-                  <Link
-                    key={n.to}
-                    to={n.to!}
-                    onClick={() => setMobileOpen(false)}
-                    className="block font-display font-medium text-[18px] text-ink"
-                  >
-                    {n.label}
-                  </Link>
-                ),
+                  <div className="pt-4 border-t border-ink space-y-3">
+                    <Link
+                      to={`/dashboard/${role === "operator" ? "poster" : "operator"}`}
+                      onClick={() => setMobileOpen(false)}
+                      className="block"
+                    >
+                      <FlButton variant="secondary" className="w-full" iconLeft={<ArrowLeftRight size={14} />}>
+                        Switch to {role === "operator" ? "poster" : "operator"}
+                      </FlButton>
+                    </Link>
+                    <FlButton variant="destructive" className="w-full" iconLeft={<LogOut size={14} />} onClick={() => { signOut(); setMobileOpen(false); }}>
+                      Sign out
+                    </FlButton>
+                  </div>
+                </>
+              ) : (
+                <>
+                  {NAV.map((n) =>
+                    n.children ? (
+                      <div key={n.label}>
+                        <div className="mono-label-ink mb-3">{n.label}</div>
+                        <ul className="space-y-3 border-l border-ink pl-4">
+                          {n.children.map((c) =>
+                            c.auth ? (
+                              <li key={c.to}>
+                                <button
+                                  onClick={() => handleAuthLink(c.to, c.auth!)}
+                                  className="block text-left w-full"
+                                >
+                                  <div className="font-display font-medium text-[16px] text-ink">{c.label}</div>
+                                  {c.desc && <div className="mono-small text-muted-ink mt-0.5">{c.desc}</div>}
+                                </button>
+                              </li>
+                            ) : (
+                              <li key={c.to}>
+                                <Link to={c.to} onClick={() => setMobileOpen(false)} className="block">
+                                  <div className="font-display font-medium text-[16px] text-ink">{c.label}</div>
+                                  {c.desc && <div className="mono-small text-muted-ink mt-0.5">{c.desc}</div>}
+                                </Link>
+                              </li>
+                            ),
+                          )}
+                        </ul>
+                      </div>
+                    ) : (
+                      <Link key={n.to} to={n.to!} onClick={() => setMobileOpen(false)} className="block font-display font-medium text-[18px] text-ink">
+                        {n.label}
+                      </Link>
+                    ),
+                  )}
+                  <div className="pt-4 border-t border-ink space-y-3">
+                    {!connected ? (
+                      <FlButton variant="secondary" className="w-full" onClick={() => { requireAuth("poster"); setMobileOpen(false); }}>Sign in with wallet</FlButton>
+                    ) : (
+                      <Link to="/dashboard/poster" onClick={() => setMobileOpen(false)} className="block">
+                        <FlButton variant="secondary" className="w-full">Go to dashboard</FlButton>
+                      </Link>
+                    )}
+                    <FlButton variant="cobalt" className="w-full" onClick={() => handleAuthLink("/dashboard/poster/post", "poster")}>Post a bounty</FlButton>
+                    <FlButton variant="secondary" className="w-full" onClick={() => handleAuthLink("/dashboard/operator/deploy", "operator")}>Deploy an agent</FlButton>
+                  </div>
+                </>
               )}
-              <div className="pt-4 border-t border-ink space-y-3">
-                {!connected ? (
-                  <FlButton variant="secondary" className="w-full" onClick={() => { requireAuth("poster"); setMobileOpen(false); }}>Sign in with wallet</FlButton>
-                ) : (
-                  <Link to="/dashboard/poster" onClick={() => setMobileOpen(false)} className="block">
-                    <FlButton variant="secondary" className="w-full">Go to dashboard</FlButton>
-                  </Link>
-                )}
-                <FlButton variant="cobalt" className="w-full" onClick={() => handleAuthLink("/dashboard/poster/post", "poster")}>Post a bounty</FlButton>
-                <FlButton variant="secondary" className="w-full" onClick={() => handleAuthLink("/dashboard/operator/deploy", "operator")}>Deploy an agent</FlButton>
-              </div>
             </div>
           </div>
         </div>
