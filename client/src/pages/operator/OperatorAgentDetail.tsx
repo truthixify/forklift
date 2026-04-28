@@ -1,5 +1,7 @@
 import { useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import { parseUnits, erc20Abi } from "viem";
+import { useWriteContract } from "wagmi";
 import { DashboardLayout } from "@/components/shell/DashboardLayout";
 import { ManifestCard, IdTab, StatusBand, MonoLabel, Tag, Monogram, Brackets } from "@/components/manifest/Manifest";
 import { FlButton } from "@/components/manifest/FlButton";
@@ -7,9 +9,9 @@ import { FlInput } from "@/components/manifest/FlInput";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { useWalletAuth } from "@/components/auth/WalletAuth";
 import { useMyAgents, usePauseAgent, useResumeAgent, useRetireAgent, useUpdateSpendCaps, useWithdrawEarnings } from "@/lib/api";
-import { BountyRow } from "@/components/manifest/Cards";
 import { ArrowLeft } from "lucide-react";
-import type { Bounty } from "@/lib/types";
+import { KITE_USDT_ADDRESS } from "@/lib/config";
+import { kiteTestnet } from "@/lib/wagmi";
 
 export default function OperatorAgentDetail() {
   const { id } = useParams();
@@ -28,11 +30,14 @@ export default function OperatorAgentDetail() {
     return arr.find((a) => a.id === id || a.wallet === id || a.passportAddress === id) as Record<string, unknown> | undefined;
   }, [agentsData, id]);
 
+  const { writeContractAsync } = useWriteContract();
   const [retuneOpen, setRetuneOpen] = useState(false);
   const [draftPerTask, setDraftPerTask] = useState("2.50");
   const [draftDaily, setDraftDaily] = useState("50.00");
   const [withdrawOpen, setWithdrawOpen] = useState(false);
   const [withdrawAmount, setWithdrawAmount] = useState("");
+  const [fundingTx, setFundingTx] = useState(false);
+  const [withdrawingTx, setWithdrawingTx] = useState(false);
   const [fundOpen, setFundOpen] = useState(false);
   const [fundAmount, setFundAmount] = useState("25.00");
 
@@ -255,7 +260,27 @@ export default function OperatorAgentDetail() {
           </div>
           <DialogFooter className="mt-4 gap-2">
             <FlButton variant="secondary" onClick={() => setFundOpen(false)}>Cancel</FlButton>
-            <FlButton variant="cobalt" onClick={() => setFundOpen(false)}>Confirm fund</FlButton>
+            <FlButton variant="cobalt" disabled={fundingTx} onClick={async () => {
+              const n = parseFloat(fundAmount);
+              if (n <= 0 || !operatorAddress) return;
+              setFundingTx(true);
+              try {
+                await writeContractAsync({
+                  address: KITE_USDT_ADDRESS as `0x${string}`,
+                  abi: erc20Abi,
+                  account: operatorAddress as `0x${string}`,
+                  chain: kiteTestnet,
+                  functionName: 'transfer',
+                  args: [wallet as `0x${string}`, parseUnits(String(n), 18)],
+                });
+                setActionMsg(`Funded ${fundAmount} USDT to agent wallet.`);
+                setFundOpen(false);
+              } catch (err) {
+                console.error("Fund failed:", err);
+              } finally {
+                setFundingTx(false);
+              }
+            }}>{fundingTx ? "Sending..." : "Confirm fund"}</FlButton>
           </DialogFooter>
         </DialogContent>
       </Dialog>
