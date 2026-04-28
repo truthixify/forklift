@@ -35,10 +35,13 @@ export class ProfilesController {
         const kinds = (spec.deliverableKinds as string[]) ?? [];
         const specializations = [...templates, ...kinds].map((s) => s.toUpperCase());
 
+        const rawName = a.displayName || a.name;
+        const cleanName = rawName.replace(/^Forklift\s*·\s*/i, '');
+
         return {
           id: a.passportAddress,
-          handle: a.displayName || a.name,
-          monogram: (a.displayName || a.name).charAt(0).toUpperCase(),
+          handle: cleanName,
+          monogram: cleanName.charAt(0).toUpperCase(),
           wallet: a.passportAddress,
           specializations,
           paid: agg.paid,

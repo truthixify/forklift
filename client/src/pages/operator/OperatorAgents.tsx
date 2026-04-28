@@ -5,12 +5,12 @@ import { ManifestCard, IdTab, StatusBand, MonoLabel, Monogram } from "@/componen
 import { FlButton } from "@/components/manifest/FlButton";
 import { FlInput } from "@/components/manifest/FlInput";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { useMyAgents } from "@/lib/api";
+import { useMyAgents, usePauseAgent, useResumeAgent, useUpdateSpendCaps, useWithdrawEarnings } from "@/lib/api";
 import { useWalletAuth } from "@/components/auth/WalletAuth";
 import type { Agent } from "@/data/mock";
 import { ArrowRight } from "lucide-react";
 
-type Filter = "all" | "active" | "paused" | "probation";
+type Filter = "all" | "active" | "paused" | "retired";
 
 type CapState = Record<string, { perTask: string; daily: string; active: boolean }>;
 
@@ -33,23 +33,30 @@ export default function OperatorAgents() {
     }
   }, [mine, caps]);
 
+  const pauseAgent = usePauseAgent();
+  const resumeAgent = useResumeAgent();
+  const updateCapsApi = useUpdateSpendCaps();
+  const withdrawApi = useWithdrawEarnings();
   const [retuneId, setRetuneId] = useState<string | null>(null);
   const [draft, setDraft] = useState({ perTask: "2.50", daily: "50.00" });
 
-  const agentActive = (a: Agent) => caps[a.id]?.active ?? a.active;
+  const agentStatus = (a: Agent) => {
+    const ext = a as Agent & { status?: string };
+    return ext.status ?? (a.active ? 'active' : 'paused');
+  };
 
   const list = mine.filter((a) => {
-    const isActive = agentActive(a);
-    if (filter === "active") return isActive && !a.probation;
-    if (filter === "paused") return !isActive;
-    if (filter === "probation") return a.probation;
+    const s = agentStatus(a);
+    if (filter === "active") return s === 'active';
+    if (filter === "paused") return s === 'paused';
+    if (filter === "retired") return s === 'retired';
     return true;
   });
 
   const count = (f: Filter) => {
-    if (f === "active") return mine.filter((a) => agentActive(a) && !a.probation).length;
-    if (f === "paused") return mine.filter((a) => !agentActive(a)).length;
-    if (f === "probation") return mine.filter((a) => a.probation).length;
+    if (f === "active") return mine.filter((a) => agentStatus(a) === 'active').length;
+    if (f === "paused") return mine.filter((a) => agentStatus(a) === 'paused').length;
+    if (f === "retired") return mine.filter((a) => agentStatus(a) === 'retired').length;
     return mine.length;
   };
 
@@ -61,12 +68,12 @@ export default function OperatorAgents() {
 
   const saveRetune = () => {
     if (!retuneId) return;
-    setCaps((prev) => ({ ...prev, [retuneId]: { ...prev[retuneId], ...draft } }));
+    updateCapsApi.mutate({
+      address: retuneId,
+      perTaskUSDT: String(BigInt(Math.round(parseFloat(draft.perTask) * 1e18))),
+      globalDailyUSDT: String(BigInt(Math.round(parseFloat(draft.daily) * 1e18))),
+    });
     setRetuneId(null);
-  };
-
-  const togglePause = (id: string) => {
-    setCaps((prev) => ({ ...prev, [id]: { ...prev[id], active: !prev[id].active } }));
   };
 
   if (isLoading) {
@@ -87,7 +94,7 @@ export default function OperatorAgents() {
       headerAction={<Link to="/dashboard/operator/deploy"><FlButton variant="cobalt">+ Deploy agent</FlButton></Link>}
     >
       <div className="flex flex-wrap gap-2">
-        {(["all", "active", "paused", "probation"] as Filter[]).map((f) => (
+        {(["all", "active", "paused", "retired"] as Filter[]).map((f) => (
           <button
             key={f}
             onClick={() => setFilter(f)}
@@ -103,10 +110,8 @@ export default function OperatorAgents() {
           const todaySpend = (a as any).todaySpend ?? 0;
           const capObj = (a as any).spendCaps ?? {};
           const capPerTask = capObj.perTaskUSDT ? Number(BigInt(capObj.perTaskUSDT)) / 1e18 : 2.5;
-          const state = caps[a.id] ?? { perTask: capPerTask.toFixed(2), daily: "50.00", active: a.active };
-          const isActive = state.active;
-          const cap = parseFloat(state.perTask) || capPerTask;
-          const spend = 1.2 + (a.rating ?? 4) * 0.15;
+          const isActive = agentStatus(a) === 'active';
+          const cap = capPerTask;
           const pct = cap > 0 ? Math.min(100, (todaySpend / cap) * 100) : 0;
           const near = pct > 70;
           const detailHref = `/dashboard/operator/agents/${a.id}`;
@@ -124,8 +129,8 @@ export default function OperatorAgents() {
                 idTab={<IdTab variant="ink">AGENT · {a.wallet ?? a.id}</IdTab>}
                 formFooter={`AGENT · ${(a.handle ?? "AGENT").toUpperCase()}`}
               >
-                <StatusBand state={isActive ? "assigned" : "ink"}>
-                  {isActive ? (a.probation ? "ACTIVE · NEW AGENT" : "ACTIVE · WORKING") : "PAUSED"}
+                <StatusBand state={agentStatus(a) === 'retired' ? "disputed" : isActive ? "assigned" : "ink"}>
+                  {agentStatus(a) === 'retired' ? "RETIRED" : isActive ? (a.paid < 3 ? "ACTIVE · NEW" : "ACTIVE") : "PAUSED"}
                 </StatusBand>
                 <div className="p-6 transition-colors group-hover:bg-hairline/20">
                   <div className="flex items-start gap-4">
@@ -158,11 +163,13 @@ export default function OperatorAgents() {
                     className="mt-5 grid grid-cols-2 sm:grid-cols-4 gap-2"
                     onClick={(e) => e.stopPropagation()}
                   >
-                    <FlButton variant="cobalt" size="sm">Withdraw</FlButton>
-                    <FlButton variant="secondary" size="sm" onClick={() => togglePause(a.id)}>
-                      {isActive ? "Pause" : "Resume"}
+                    <FlButton variant="cobalt" size="sm" onClick={() => address && withdrawApi.mutate({ address: a.id, operatorAddress: address, amount: String(a.earnings) })}>
+                      {withdrawApi.isPending ? "..." : "Withdraw"}
                     </FlButton>
-                    <FlButton variant="ghost" size="sm" onClick={() => openRetune(a.id)}>Retune cap</FlButton>
+                    <FlButton variant="secondary" size="sm" onClick={() => isActive ? pauseAgent.mutate(a.wallet ?? a.id) : resumeAgent.mutate(a.wallet ?? a.id)}>
+                      {pauseAgent.isPending || resumeAgent.isPending ? "..." : isActive ? "Pause" : "Resume"}
+                    </FlButton>
+                    <FlButton variant="ghost" size="sm" onClick={() => { const ext = a as any; setDraft({ perTask: (ext.spendCaps?.perTaskUSDT ? (Number(BigInt(ext.spendCaps.perTaskUSDT)) / 1e18).toFixed(2) : "2.50"), daily: (ext.spendCaps?.globalDailyUSDT ? (Number(BigInt(ext.spendCaps.globalDailyUSDT)) / 1e18).toFixed(2) : "50.00") }); setRetuneId(a.id); }}>Retune cap</FlButton>
                     <FlButton variant="ghost" size="sm" onClick={() => nav(detailHref)}>Manage →</FlButton>
                   </div>
                 </div>
