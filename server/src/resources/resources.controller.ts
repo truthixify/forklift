@@ -32,7 +32,23 @@ export class ResourcesController {
 
   @Get('catalog')
   getCatalog() {
-    return { catalog: RESOURCE_CATALOG };
+    const catalog = RESOURCE_CATALOG.map((r) => {
+      const priceWei = (r as Record<string, unknown>).pricePerCallUSDT ?? (r as Record<string, unknown>).pricePerRecordUSDT ?? '0';
+      const priceUsdt = Number(BigInt(priceWei as string)) / 1e18;
+      const unit = 'pricePerRecordUSDT' in r ? 'record' : 'call';
+
+      return {
+        path: r.path,
+        name: r.name,
+        description: r.description,
+        price: `${priceUsdt} USDT / ${unit}`,
+        priceRaw: priceWei,
+        notes: r.notes,
+        sample: unit === 'record' ? 'GET → 200 OK · {records: [...]}' : 'POST → 200 OK · {result: ...}',
+      };
+    });
+
+    return { catalog };
   }
 
   @Get('stats')

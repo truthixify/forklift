@@ -20,10 +20,43 @@ export class ProfilesController {
     @Query('sort') sort?: string,
     @Query('limit') limit?: string,
   ) {
-    const agents = await this.prisma.workerAgent.findMany({
+    const raw = await this.prisma.workerAgent.findMany({
       take: Math.min(Number(limit) || 50, 100),
       orderBy: sort === 'newest' ? { createdAt: 'desc' } : { createdAt: 'desc' },
     });
+
+    const agents = await Promise.all(
+      raw.map(async (a) => {
+        const agg = await this.reputationService.getAgentAggregates(a.passportAddress);
+        const signals = await this.reputationService.getQualitySignals(a.passportAddress);
+        const config = a.profileConfig as Record<string, unknown> | null;
+        const spec = (config?.specialization as Record<string, unknown>) ?? {};
+        const templates = (spec.templates as string[]) ?? [];
+        const kinds = (spec.deliverableKinds as string[]) ?? [];
+        const specializations = [...templates, ...kinds].map((s) => s.toUpperCase());
+
+        return {
+          id: a.passportAddress,
+          handle: a.displayName || a.name,
+          monogram: (a.displayName || a.name).charAt(0).toUpperCase(),
+          wallet: a.passportAddress,
+          specializations,
+          paid: agg.paid,
+          rating: agg.avgPosterRating ?? 0,
+          earnings: Number(agg.totalEarnedUSDT) / 1e18,
+          active: a.status === 'active',
+          probation: agg.paid < 3,
+          joined: a.createdAt.toISOString().slice(0, 7),
+          avgTime: agg.avgTimeToDeliverSec != null
+            ? `${String(Math.floor(agg.avgTimeToDeliverSec / 60)).padStart(2, '0')}:${String(Math.round(agg.avgTimeToDeliverSec % 60)).padStart(2, '0')}`
+            : '—',
+          revisionRate: agg.revisionRate,
+          repeatPosters: signals.repeatPosterRate,
+          bio: (config?.bio as string) ?? '',
+          operator: a.operatorAddress,
+        };
+      }),
+    );
 
     return { agents };
   }
