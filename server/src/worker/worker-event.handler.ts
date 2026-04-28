@@ -39,11 +39,12 @@ export class WorkerEventHandler implements OnModuleInit {
   }
 
   /**
-   * On startup, find bounties that exist in indexed_events but have no
-   * proposals from any active agent yet (and no assignment). These were
-   * missed because the server was down or the worker hadn't been deployed.
+   * Periodically scan indexed bounties that have no proposals from active
+   * agents yet. Catches bounties missed on startup, and re-evaluates after
+   * an operator changes agent config (e.g. lowering minBountyUSDT).
    */
-  private async processExistingBounties() {
+  @Cron(CronExpression.EVERY_30_SECONDS)
+  async processExistingBounties() {
     const profiles = await this.getActiveAgentProfiles();
     this.logger.log(`Found ${profiles.length} active agent(s): ${profiles.map((p) => `${p.displayName} (${p.passportAddress.slice(0, 10)})`).join(', ') || 'none'}`);
     if (profiles.length === 0) {
