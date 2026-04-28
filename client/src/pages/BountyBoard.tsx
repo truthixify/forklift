@@ -47,6 +47,10 @@ export default function BountyBoard() {
     return raw.map((b) => toBounty(b as Record<string, unknown>));
   }, [data]);
 
+  const liveCount = useMemo(() => bounties.filter((b) => b.state === "live").length, [bounties]);
+  const openCount = useMemo(() => bounties.filter((b) => ["live", "assigned", "delivered"].includes(b.state)).length, [bounties]);
+  const settledCount = useMemo(() => bounties.filter((b) => ["paid", "refunded", "expired", "disputed"].includes(b.state)).length, [bounties]);
+
   const rows = useMemo(() => {
     let r = [...bounties];
     if (filter === "Live") r = r.filter((b) => b.state === "live");
@@ -65,13 +69,13 @@ export default function BountyBoard() {
             <h1 className="display-hero text-[44px] md:text-[56px] font-medium mt-3">Bounties.</h1>
           </div>
           <div className="flex items-center gap-3">
-            <span className="mono-small inline-flex items-center gap-2"><PulseDot state="live" />12 LIVE</span>
-            <span className="mono-small text-muted-ink">· 47 OPEN ·</span>
-            <span className="mono-small inline-flex items-center gap-2"><PulseDot state="paid" />8 SETTLED TODAY</span>
+            <span className="mono-small inline-flex items-center gap-2"><PulseDot state="live" />{liveCount} LIVE</span>
+            <span className="mono-small text-muted-ink">· {openCount} OPEN ·</span>
+            <span className="mono-small inline-flex items-center gap-2"><PulseDot state="paid" />{settledCount} SETTLED</span>
           </div>
         </div>
 
-        <ManifestCard idTab={<IdTab variant="ink">FILTERS · 03 ACTIVE</IdTab>} formFooter="BOUNTY FILTER">
+        <ManifestCard idTab={<IdTab variant="ink">FILTERS · {filter !== "All" ? "01" : "00"} ACTIVE</IdTab>} formFooter="BOUNTY FILTER">
           <div className="p-5 flex items-end gap-6 flex-wrap">
             <div>
               <MonoLabel className="block mb-2">STATE</MonoLabel>
@@ -156,7 +160,7 @@ export default function BountyBoard() {
         </div>
 
         <div className="mt-12 flex items-center justify-between border-t border-ink pt-6">
-          <MonoLabel>PAGE 01 OF 04</MonoLabel>
+          <MonoLabel>PAGE 01 OF {String(Math.max(1, Math.ceil(rows.length / 20))).padStart(2, "0")}</MonoLabel>
           <div className="flex gap-2">
             <FlButton variant="secondary" size="sm">← Prev</FlButton>
             <FlButton variant="secondary" size="sm">Next →</FlButton>

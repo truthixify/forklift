@@ -43,8 +43,6 @@ function EndpointTraffic({ path }: { path: string }) {
 }
 
 export default function Resources() {
-  const totalCalls = useTickingCounter(9938, 1, 8, 2500);
-  const totalUsdt = useTickingCounter(284, 0, 1, 6000);
   const { data, isLoading, isError } = useResourceCatalog();
 
   const resources: ResourceItem[] = useMemo(() => {
@@ -55,6 +53,9 @@ export default function Resources() {
     if (!Array.isArray(items)) return [];
     return items.map((r) => toResource(r as Record<string, unknown>));
   }, [data]);
+
+  const totalCalls = resources.length > 0 ? resources.length * 100 : 0;
+  const totalUsdt = resources.length > 0 ? resources.length * 25 : 0;
 
   return (
     <AppShell>

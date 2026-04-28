@@ -2,8 +2,9 @@ import { useMemo, useState } from "react";
 import { AppShell } from "@/components/shell/AppShell";
 import { ManifestCard, IdTab, StatusBand, MonoLabel, PulseDot } from "@/components/manifest/Manifest";
 import { ActivityRow } from "@/components/manifest/ActivityRow";
-import { useLiveFeed, useTickingCounter, useBlockHeight } from "@/hooks/useLiveFeed";
+import { useLiveFeed } from "@/hooks/useLiveFeed";
 import { useRealFeed } from "@/hooks/useRealFeed";
+import { useFeed } from "@/lib/api";
 import type { FeedEvent } from "@/hooks/useRealFeed";
 import type { ActivityEvent } from "@/data/mock";
 
@@ -37,10 +38,13 @@ export default function LiveFeed() {
   const [active, setActive] = useState<FilterKey[]>(FILTERS.map((f) => f.key));
   const { events: wsEvents, connected: wsConnected } = useRealFeed();
   const mockEvents = useLiveFeed(3200);
-  const eventsHr = useTickingCounter(47, 0, 2, 5000);
-  const paidToday = useTickingCounter(12, 0, 1, 11000);
-  const usdtToday = useTickingCounter(814, 1, 9, 5500);
-  const block = useBlockHeight();
+  const { data: feedData } = useFeed({ limit: '100' });
+  const feedEvents = (feedData as { events?: unknown[] })?.events ?? [];
+
+  const eventsHr = feedEvents.length;
+  const paidToday = feedEvents.filter((e: Record<string, unknown>) => (e as { eventName?: string }).eventName === 'BountyPaid').length;
+  const usdtToday = 0;
+  const block = feedEvents.length > 0 ? Number((feedEvents[0] as Record<string, unknown>).blockNumber ?? 0) : 0;
 
   const events: ActivityEvent[] = wsConnected && wsEvents.length > 0
     ? wsEvents.map(feedEventToActivity)

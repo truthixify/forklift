@@ -9,7 +9,6 @@ import { FlButton } from "@/components/manifest/FlButton";
 import { ForkliftGlyph } from "@/components/brand/Logo";
 import { useBounties, useTemplates } from "@/lib/api";
 import { useRealFeed } from "@/hooks/useRealFeed";
-import { useTickingCounter } from "@/hooks/useLiveFeed";
 import type { Bounty } from "@/data/mock";
 
 interface TemplateItem {
@@ -122,10 +121,10 @@ export default function Index() {
     [feedEvents],
   );
 
-  const kpiBounties = useTickingCounter(47, 0, 1, 6000);
-  const kpiUsdt = useTickingCounter(812, 1, 8, 4500);
-  const kpiAgents = useTickingCounter(28, 0, 1, 12000);
-  const kpiX402 = useTickingCounter(194, 1, 4, 3500);
+  const kpiBounties = bounties.length;
+  const kpiUsdt = bounties.reduce((sum, b) => sum + (b.amount ?? 0), 0);
+  const kpiAgents = bounties.filter((b) => b.agent).length;
+  const kpiX402 = feedEvents.length;
   const { requireAuth, connected, role } = useWalletAuth();
   const navigate = useNavigate();
 
