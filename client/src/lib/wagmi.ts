@@ -1,7 +1,7 @@
-import { getDefaultConfig } from '@rainbow-me/rainbowkit';
+import { connectorsForWallets } from '@rainbow-me/rainbowkit';
+import { metaMaskWallet, rabbyWallet, coinbaseWallet } from '@rainbow-me/rainbowkit/wallets';
+import { createConfig, http } from 'wagmi';
 import { defineChain } from 'viem';
-import { http } from 'wagmi';
-import { injected } from 'wagmi/connectors';
 
 export const kiteTestnet = defineChain({
   id: 2368,
@@ -12,9 +12,18 @@ export const kiteTestnet = defineChain({
   testnet: true,
 });
 
-export const wagmiConfig = getDefaultConfig({
-  appName: 'Forklift',
-  projectId: import.meta.env.VITE_WC_PROJECT_ID || '4c3b3e8c8b1e4a5d9f2e1a6c7d8b9e0f',
+const connectors = connectorsForWallets(
+  [
+    {
+      groupName: 'Connect',
+      wallets: [metaMaskWallet, rabbyWallet, coinbaseWallet],
+    },
+  ],
+  { appName: 'Forklift', projectId: 'none' },
+);
+
+export const wagmiConfig = createConfig({
+  connectors,
   chains: [kiteTestnet],
   transports: {
     [kiteTestnet.id]: http('https://rpc-testnet.gokite.ai/'),
