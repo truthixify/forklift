@@ -28,5 +28,4 @@ export const wagmiConfig = createConfig({
   transports: {
     [kiteTestnet.id]: http('https://rpc-testnet.gokite.ai/'),
   },
-  ssr: false,
 });
