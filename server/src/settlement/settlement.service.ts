@@ -64,7 +64,7 @@ export class SettlementService {
       this.logger.log(`Release tx: ${txHash}`);
       return txHash;
     } catch (error) {
-      this.logger.error(`Release failed for ${bountyId}`, error);
+      this.logger.error(`Release failed for ${bountyId}: ${this.parseContractError(error)}`);
       return null;
     }
   }
@@ -108,7 +108,7 @@ export class SettlementService {
       this.logger.log(`Refund tx: ${txHash}`);
       return txHash;
     } catch (error) {
-      this.logger.error(`Refund failed for ${bountyId}`, error);
+      this.logger.error(`Refund failed for ${bountyId}: ${this.parseContractError(error)}`);
       return null;
     }
   }
@@ -208,5 +208,19 @@ export class SettlementService {
         payload: { bountyId: args.bountyId },
       });
     }
+  }
+
+  private parseContractError(error: unknown): string {
+    if (!error || typeof error !== 'object') return String(error);
+    const err = error as Record<string, unknown>;
+    const cause = err.cause as Record<string, unknown> | undefined;
+    const data = cause?.data as Record<string, unknown> | undefined;
+    if (data?.errorName) {
+      const args = Array.isArray(data.args) ? data.args.join(', ') : '';
+      return `${data.errorName}(${args})`;
+    }
+    const short = (err.shortMessage ?? cause?.shortMessage) as string | undefined;
+    if (short) return short;
+    return (err.message as string) ?? String(error);
   }
 }

@@ -86,7 +86,12 @@ export class AssignmentService {
 
         this.logger.log(`Assignment tx submitted: ${txHash}`);
       } catch (error) {
-        this.logger.error('On-chain assignment failed', error);
+        const msg = this.parseContractError(error);
+        if (msg.includes('BadStatus')) {
+          this.logger.warn(`Bounty ${bountyId} already assigned on-chain — skipping`);
+        } else {
+          this.logger.error(`On-chain assign failed for ${bountyId}: ${msg}`);
+        }
       }
     } else {
       this.logger.warn('BROKER_PRIVATE_KEY or BOUNTY_ESCROW_ADDRESS not set; skipping on-chain assignment');
@@ -119,5 +124,19 @@ export class AssignmentService {
       waitlist,
       scoringHash,
     };
+  }
+
+  private parseContractError(error: unknown): string {
+    if (!error || typeof error !== 'object') return String(error);
+    const err = error as Record<string, unknown>;
+    const cause = err.cause as Record<string, unknown> | undefined;
+    const data = cause?.data as Record<string, unknown> | undefined;
+    if (data?.errorName) {
+      const args = Array.isArray(data.args) ? data.args.join(', ') : '';
+      return `${data.errorName}(${args})`;
+    }
+    const short = (err.shortMessage ?? cause?.shortMessage) as string | undefined;
+    if (short) return short;
+    return (err.message as string) ?? String(error);
   }
 }
