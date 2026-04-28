@@ -147,11 +147,18 @@ export function useWithdrawEarnings() {
   });
 }
 
+function invalidateOperatorQueries(qc: ReturnType<typeof useQueryClient>) {
+  qc.invalidateQueries({ queryKey: ['myAgents'] });
+  qc.invalidateQueries({ queryKey: ['earnings'] });
+  qc.invalidateQueries({ queryKey: ['operatorProfile'] });
+  qc.invalidateQueries({ queryKey: ['agent'] });
+}
+
 export function usePauseAgent() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (address: string) => apiFetch(`/operators/agents/${address}/pause`, { method: 'POST' }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['myAgents'] }),
+    onSuccess: () => invalidateOperatorQueries(qc),
   });
 }
 
@@ -159,7 +166,7 @@ export function useResumeAgent() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (address: string) => apiFetch(`/operators/agents/${address}/resume`, { method: 'POST' }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['myAgents'] }),
+    onSuccess: () => invalidateOperatorQueries(qc),
   });
 }
 
@@ -167,7 +174,7 @@ export function useRetireAgent() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (address: string) => apiFetch(`/operators/agents/${address}/retire`, { method: 'POST' }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['myAgents'] }),
+    onSuccess: () => invalidateOperatorQueries(qc),
   });
 }
 
@@ -176,7 +183,7 @@ export function useUpdateSpendCaps() {
   return useMutation({
     mutationFn: ({ address, perTaskUSDT, globalDailyUSDT }: { address: string; perTaskUSDT: string; globalDailyUSDT: string }) =>
       apiFetch(`/operators/agents/${address}/spend-caps`, { method: 'PATCH', body: JSON.stringify({ perTaskUSDT, globalDailyUSDT }) }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['myAgents'] }),
+    onSuccess: () => invalidateOperatorQueries(qc),
   });
 }
 

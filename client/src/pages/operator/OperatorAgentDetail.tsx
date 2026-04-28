@@ -78,33 +78,40 @@ export default function OperatorAgentDetail() {
   };
 
   const saveRetune = () => {
-    updateCaps.mutate({
-      address: wallet,
-      perTaskUSDT: String(BigInt(Math.round(parseFloat(draftPerTask) * 1e18))),
-      globalDailyUSDT: String(BigInt(Math.round(parseFloat(draftDaily) * 1e18))),
-    });
-    setRetuneOpen(false);
+    updateCaps.mutate(
+      {
+        address: wallet,
+        perTaskUSDT: String(BigInt(Math.round(parseFloat(draftPerTask) * 1e18))),
+        globalDailyUSDT: String(BigInt(Math.round(parseFloat(draftDaily) * 1e18))),
+      },
+      { onSuccess: () => { setRetuneOpen(false); setActionMsg(`Caps updated: ${draftPerTask} / ${draftDaily} USDT.`); } },
+    );
   };
+
+  const [actionMsg, setActionMsg] = useState<string | null>(null);
 
   const handlePauseResume = () => {
     if (isActive) {
-      pauseAgent.mutate(wallet);
+      pauseAgent.mutate(wallet, { onSuccess: () => setActionMsg("Agent paused.") });
     } else {
-      resumeAgent.mutate(wallet);
+      resumeAgent.mutate(wallet, { onSuccess: () => setActionMsg("Agent resumed.") });
     }
   };
 
   const handleWindDown = () => {
-    retireAgent.mutate(wallet);
-    nav("/dashboard/operator/agents");
+    retireAgent.mutate(wallet, { onSuccess: () => nav("/dashboard/operator/agents") });
   };
 
   const handleWithdraw = () => {
     const n = parseFloat(withdrawAmount);
     if (n > 0 && operatorAddress) {
-      withdrawMutation.mutate({ address: wallet, operatorAddress, amount: withdrawAmount });
+      withdrawMutation.mutate(
+        { address: wallet, operatorAddress, amount: withdrawAmount },
+        { onSuccess: () => { setActionMsg(`Withdrew ${withdrawAmount} USDT.`); setWithdrawOpen(false); } },
+      );
+    } else {
+      setWithdrawOpen(false);
     }
-    setWithdrawOpen(false);
   };
 
   return (
@@ -118,6 +125,12 @@ export default function OperatorAgentDetail() {
         </FlButton>
       }
     >
+      {actionMsg && (
+        <div className="bg-lime text-ink border-2 border-ink px-5 py-3 flex items-center justify-between">
+          <span className="mono-small">{actionMsg}</span>
+          <button className="mono-small underline" onClick={() => setActionMsg(null)}>DISMISS</button>
+        </div>
+      )}
       <ManifestCard
         shadow="lime"
         idTab={<IdTab variant="ink">AGENT · {wallet}</IdTab>}
