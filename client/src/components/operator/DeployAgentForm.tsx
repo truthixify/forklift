@@ -32,7 +32,11 @@ export function DeployAgentForm({ doneHref = "/dashboard/operator/agents" }: { d
   const [handle, setHandle] = useState("");
   const [provider, setProvider] = useState<typeof PROVIDERS[number]["id"]>("forklift");
   const [apiKey, setApiKey] = useState("");
+  const [perTask, setPerTask] = useState("2.50");
+  const [dailyCap, setDailyCap] = useState("50.00");
   const [prefund, setPrefund] = useState("0");
+  const [deployed, setDeployed] = useState(false);
+  const [deployedAgent, setDeployedAgent] = useState<Record<string, unknown> | null>(null);
   const nav = useNavigate();
   const { address } = useWalletAuth();
   const deployMutation = useDeployAgent();
@@ -48,13 +52,44 @@ export function DeployAgentForm({ doneHref = "/dashboard/operator/agents" }: { d
           apiKey: activeProvider.needsKey ? apiKey : undefined,
           prefund: parseFloat(prefund) || 0,
           operatorAddress: address ?? "",
+          spendCaps: {
+            perTaskUSDT: String(BigInt(Math.round(parseFloat(perTask) * 1e18))),
+            globalDailyUSDT: String(BigInt(Math.round(parseFloat(dailyCap) * 1e18))),
+          },
         },
-        { onSuccess: () => nav(doneHref) },
+        {
+          onSuccess: (data) => {
+            setDeployedAgent(data as Record<string, unknown>);
+            setDeployed(true);
+          },
+        },
       );
     } else {
       setStep(step + 1);
     }
   };
+
+  if (deployed) {
+    const agentData = (deployedAgent?.agent ?? deployedAgent) as Record<string, unknown> | undefined;
+    const agentName = (agentData?.displayName as string) ?? (agentData?.name as string) ?? handle;
+    const agentAddr = (agentData?.passportAddress as string) ?? (agentData?.aaWalletAddress as string) ?? "";
+    const shortAddr = agentAddr ? `${agentAddr.slice(0, 6)}…${agentAddr.slice(-4)}` : "";
+
+    return (
+      <ManifestCard shadow="lime" idTab={<IdTab variant="cobalt">DEPLOYED</IdTab>} formFooter="AGENT DEPLOYED">
+        <StatusBand state="paid" pulse={false}>AGENT DEPLOYED · LIVE</StatusBand>
+        <div className="p-12 text-center">
+          <h2 className="display-hero text-[64px] font-medium leading-tight">Agent deployed.</h2>
+          <p className="mt-4 text-[18px] text-muted-ink">{agentName} is live and listening for bounties.</p>
+          {shortAddr && <p className="mono-small text-muted-ink mt-2">WALLET · {shortAddr}</p>}
+          <div className="mt-8 flex justify-center gap-3">
+            <FlButton variant="cobalt" onClick={() => nav("/dashboard/operator/agents")}>View my agents</FlButton>
+            <FlButton variant="secondary" onClick={() => { setDeployed(false); setDeployedAgent(null); setStep(0); setHandle(""); setSpecializations([]); setProvider("forklift"); setApiKey(""); setPrefund("0"); }}>Deploy another</FlButton>
+          </div>
+        </div>
+      </ManifestCard>
+    );
+  }
 
   return (
     <>
@@ -170,8 +205,8 @@ export function DeployAgentForm({ doneHref = "/dashboard/operator/agents" }: { d
             )}
             {step === 3 && (
               <div className="space-y-4">
-                <FlInput label="MAX SPEND PER TASK · USDT" defaultValue="2.50" unit="USDT" />
-                <FlInput label="DAILY CAP · USDT" defaultValue="50.00" unit="USDT" />
+                <FlInput label="MAX SPEND PER TASK · USDT" value={perTask} onChange={(e) => setPerTask(e.target.value)} unit="USDT" type="number" />
+                <FlInput label="DAILY CAP · USDT" value={dailyCap} onChange={(e) => setDailyCap(e.target.value)} unit="USDT" type="number" />
                 <div className="flex gap-2"><Tag>X402 ENABLED</Tag><Tag>AUTO-TOPUP OFF</Tag></div>
               </div>
             )}
@@ -220,7 +255,7 @@ export function DeployAgentForm({ doneHref = "/dashboard/operator/agents" }: { d
                 <div className="flex justify-between"><MonoLabel>HANDLE</MonoLabel><span className="mono-inline">{handle || "—"}</span></div>
                 <div className="flex justify-between gap-4"><MonoLabel>SPECIALIZATIONS</MonoLabel><span className="mono-inline text-right">{specializations.length ? specializations.join(" · ") : "—"}</span></div>
                 <div className="flex justify-between"><MonoLabel>PROVIDER</MonoLabel><span className="mono-inline">{activeProvider.label}{activeProvider.needsKey && apiKey ? ` · KEY ••••${apiKey.slice(-4)}` : activeProvider.needsKey ? " · NO KEY" : ""}</span></div>
-                <div className="flex justify-between"><MonoLabel>SPEND CAP</MonoLabel><span className="mono-inline">2.50 / 50.00</span></div>
+                <div className="flex justify-between"><MonoLabel>SPEND CAP</MonoLabel><span className="mono-inline">{perTask} / {dailyCap} USDT</span></div>
                 <div className="flex justify-between"><MonoLabel>PREFUND</MonoLabel><span className="mono-inline">{parseFloat(prefund) > 0 ? `${prefund} USDT` : "NONE"}</span></div>
                 <div className="flex justify-between"><MonoLabel>WALLET</MonoLabel><span className="mono-inline">{address ?? "0xDEF7…ABC1"}</span></div>
               </div>

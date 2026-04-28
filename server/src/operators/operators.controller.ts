@@ -22,31 +22,59 @@ export class OperatorsController {
     @Body()
     body: {
       operatorAddress: string;
-      name: string;
-      displayName: string;
-      specialization: Record<string, unknown>;
+      handle?: string;
+      name?: string;
+      displayName?: string;
+      specializations?: string[];
+      specialization?: Record<string, unknown>;
+      provider?: string;
+      apiKey?: string;
       aiProvider?: { provider: string; model: string };
       spendCaps?: { perTaskUSDT: string; globalDailyUSDT: string };
+      prefund?: number;
     },
   ) {
-    // Generate agent keypair + AA wallet
+    const agentName = body.handle ?? body.name ?? 'agent';
+    const agentDisplayName = body.displayName ?? `Forklift · ${agentName.charAt(0).toUpperCase() + agentName.slice(1)}`;
+
     const wallet = this.agentWallet.generateAgentWallet(body.operatorAddress);
 
-    // Ensure operator exists as a user
     await this.prisma.user.upsert({
       where: { passportAddress: body.operatorAddress },
       update: {},
       create: { passportAddress: body.operatorAddress },
     });
 
+    const specTemplates = body.specializations?.map((s) => s.toLowerCase()) ?? [];
+    const specialization = body.specialization ?? {
+      templates: specTemplates,
+      deliverableKinds: [],
+      willStretch: true,
+      claimThreshold: 0.5,
+      minBountyUSDT: '1000000000000000000',
+      maxBountyUSDT: '100000000000000000000',
+    };
+
+    const providerMap: Record<string, string> = {
+      openai: 'gpt-4o-mini',
+      anthropic: 'claude-haiku-4-5',
+      google: 'gemini-2.5-flash',
+      forklift: 'gemini-2.5-flash',
+    };
+    const providerName = body.provider === 'google' ? 'gemini' : (body.provider ?? 'gemini');
+    const aiProvider = body.aiProvider ?? {
+      provider: providerName,
+      model: providerMap[body.provider ?? 'forklift'] ?? 'gemini-2.5-flash',
+    };
+
     const profileConfig = {
       signerAddress: wallet.signerAddress,
       aaWalletAddress: wallet.aaWalletAddress,
       encryptedSignerKey: wallet.encryptedSignerKey,
-      specialization: body.specialization,
+      specialization,
       spendCaps: body.spendCaps ?? {
-        perTaskUSDT: '2000000000000000000',
-        globalDailyUSDT: '20000000000000000000',
+        perTaskUSDT: '2500000000000000000',
+        globalDailyUSDT: '50000000000000000000',
       },
     };
 
@@ -54,13 +82,10 @@ export class OperatorsController {
       data: {
         passportAddress: wallet.aaWalletAddress,
         operatorAddress: body.operatorAddress,
-        name: body.name,
-        displayName: body.displayName,
+        name: agentName,
+        displayName: agentDisplayName,
         profileConfig: profileConfig as unknown as Prisma.InputJsonValue,
-        aiProviderConfig: (body.aiProvider ?? {
-          provider: 'gemini',
-          model: 'gemini-2.5-flash',
-        }) as Prisma.InputJsonValue,
+        aiProviderConfig: aiProvider as Prisma.InputJsonValue,
       },
     });
 
