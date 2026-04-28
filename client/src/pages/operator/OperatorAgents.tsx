@@ -136,8 +136,8 @@ export default function OperatorAgents() {
                       <MonoLabel className="block mt-1">{a.specializations[0]}</MonoLabel>
                     </div>
                     <div className="text-right">
-                      <MonoLabel>TODAY</MonoLabel>
-                      <div className="font-display font-medium text-[20px]">+{todaySpend.toFixed(2)} USDT</div>
+                      <MonoLabel>EARNED</MonoLabel>
+                      <div className="font-display font-medium text-[20px]">{a.earnings.toFixed(2)} USDT</div>
                     </div>
                   </div>
                   <div className="hairline my-4" />

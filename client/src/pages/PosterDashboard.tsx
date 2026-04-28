@@ -27,7 +27,14 @@ function toBounty(raw: Record<string, unknown>): Bounty {
   };
 }
 
-const DAYS = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
+const DAY_NAMES = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
+function getLast7DayLabels() {
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() - (6 - i));
+    return DAY_NAMES[d.getDay()];
+  });
+}
 
 export default function PosterDashboard() {
   const { address } = useWalletAuth();
@@ -124,7 +131,7 @@ export default function PosterDashboard() {
               </div>
               <div className="flex items-end gap-3 h-44 border-b border-ink">
                 {spendByDay.map((v, i) => (
-                  <div key={DAYS[i]} className="flex-1 flex flex-col items-center gap-2 h-full justify-end">
+                  <div key={`day-${i}`} className="flex-1 flex flex-col items-center gap-2 h-full justify-end">
                     <span className="mono-small tabular-nums">{v.toFixed(2)}</span>
                     <div
                       className={`w-full ${v === peak ? "bg-hivis" : "bg-cobalt"}`}
@@ -134,7 +141,7 @@ export default function PosterDashboard() {
                 ))}
               </div>
               <div className="grid grid-cols-7 mt-2">
-                {DAYS.map((d) => <MonoLabel key={d} className="text-center block">{d}</MonoLabel>)}
+                {getLast7DayLabels().map((d, i) => <MonoLabel key={`label-${i}`} className="text-center block">{d}</MonoLabel>)}
               </div>
             </div>
           </ManifestCard>

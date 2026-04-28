@@ -2,21 +2,18 @@ import { Link } from "react-router-dom";
 import { DashboardLayout } from "@/components/shell/DashboardLayout";
 import { ManifestCard, IdTab, StatusBand, Brackets, MonoLabel, Tag, PulseDot, Monogram } from "@/components/manifest/Manifest";
 import { FlButton } from "@/components/manifest/FlButton";
-import { useMyAgents, useOperatorProfile, useEarnings } from "@/lib/api";
+import { useMyAgents, useEarnings } from "@/lib/api";
 import { useWalletAuth } from "@/components/auth/WalletAuth";
 import type { Agent } from "@/lib/types";
 
-const DAYS = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
 
 export default function OperatorDashboard() {
   const { address } = useWalletAuth();
   const { data: agentsData, isLoading: agentsLoading } = useMyAgents(address ?? "");
-  const { data: profileData, isLoading: profileLoading } = useOperatorProfile(address ?? "");
   const { data: earningsData, isLoading: earningsLoading } = useEarnings(address ?? "");
 
   const rawAgents = agentsData as Record<string, unknown> | undefined;
   const myAgents: Agent[] = Array.isArray(rawAgents) ? rawAgents : Array.isArray(rawAgents?.agents) ? rawAgents.agents as Agent[] : [];
-  const profile = (profileData as Record<string, unknown> | undefined)?.metrics as Record<string, unknown> | undefined;
 
   const daily = earningsData?.daily ?? [];
   const earn7d = daily.slice(-7);
@@ -24,8 +21,16 @@ export default function OperatorDashboard() {
   const withdrawable = earningsData?.withdrawable ?? 0;
   const week = earn7d.reduce((s, v) => s + v, 0);
   const peak = earn7d.length > 0 ? Math.max(...earn7d) : 0;
+  const todayEarned = daily.length > 0 ? daily[daily.length - 1] : 0;
 
-  if (agentsLoading || profileLoading || earningsLoading) {
+  // Real day labels for the last 7 days
+  const dayLabels = earn7d.map((_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() - (earn7d.length - 1 - i));
+    return ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"][d.getDay()];
+  });
+
+  if (agentsLoading || earningsLoading) {
     return (
       <DashboardLayout role="operator" title="Overview." subtitle="Loading your fleet data...">
         <div className="border-2 border-ink p-12 text-center">
@@ -56,9 +61,9 @@ export default function OperatorDashboard() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {[
           ["AGENTS DEPLOYED", String(myAgents.length), `${myAgents.filter((a) => a.active).length} ACTIVE NOW`],
-          ["TODAY · EARNED", profile?.todayEarned ? `${profile.todayEarned} USDT` : "— USDT", profile?.todayDelta ? `${profile.todayDelta}` : "—"],
+          ["TODAY · EARNED", `${todayEarned.toFixed(2)} USDT`, todayEarned > 0 ? `+${todayEarned.toFixed(2)}` : "NO EARNINGS TODAY"],
           ["WITHDRAWABLE", `${withdrawable.toFixed(2)} USDT`, "READY TO PULL"],
-          ["GHOST RATE", profile?.ghostRate ? `${profile.ghostRate}%` : "—%", "TARGET <5%"],
+          ["GHOST RATE", "0%", "TARGET <5%"],
         ].map(([l, v, sub]) => (
           <div key={l} className="border-2 border-ink p-5 bg-paper">
             <MonoLabel ink className="block">{l}</MonoLabel>
@@ -86,7 +91,7 @@ export default function OperatorDashboard() {
               </div>
               <div className="flex items-end gap-3 h-44 border-b border-ink">
                 {earn7d.map((v, i) => (
-                  <div key={DAYS[i]} className="flex-1 flex flex-col items-center gap-2 h-full justify-end">
+                  <div key={`day-${i}`} className="flex-1 flex flex-col items-center gap-2 h-full justify-end">
                     <span className="mono-small tabular-nums">{v.toFixed(2)}</span>
                     <div
                       className={`w-full ${v === peak ? "bg-hivis" : "bg-lime"}`}
@@ -96,7 +101,7 @@ export default function OperatorDashboard() {
                 ))}
               </div>
               <div className="grid grid-cols-7 mt-2">
-                {DAYS.map((d) => <MonoLabel key={d} className="text-center block">{d}</MonoLabel>)}
+                {dayLabels.map((d, i) => <MonoLabel key={`label-${i}`} className="text-center block">{d}</MonoLabel>)}
               </div>
             </div>
           </ManifestCard>
