@@ -37,6 +37,42 @@ export class WorkerEventHandler implements OnModuleInit {
     const delivered = await this.prisma.delivery.count();
     const pending = assigned - delivered;
     this.logger.log(`Worker started — ${assigned} assigned, ${delivered} delivered, ${pending} pending work`);
+
+    // Clean up duplicate BountyAssigned events (keep only the first per bounty)
+    const assignedEvents = await this.prisma.indexedEvent.findMany({
+      where: { eventName: 'BountyAssigned' },
+      orderBy: { indexedAt: 'asc' },
+    });
+    const seenBounties = new Set<string>();
+    for (const ev of assignedEvents) {
+      if (!ev.bountyId) continue;
+      if (seenBounties.has(ev.bountyId)) {
+        await this.prisma.indexedEvent.delete({ where: { id: ev.id } });
+      } else {
+        seenBounties.add(ev.bountyId);
+      }
+    }
+
+    // Backfill DeliverySubmitted events for existing deliveries
+    const deliveries = await this.prisma.delivery.findMany();
+    for (const d of deliveries) {
+      const exists = await this.prisma.indexedEvent.findFirst({
+        where: { bountyId: d.bountyId, eventName: 'DeliverySubmitted' },
+      });
+      if (!exists) {
+        await this.prisma.indexedEvent.create({
+          data: {
+            eventName: 'DeliverySubmitted',
+            bountyId: d.bountyId,
+            blockNumber: 0n,
+            transactionHash: d.hash,
+            logIndex: 0,
+            data: { agentAddress: d.agentAddress, deliveryHash: d.hash, payloadKind: d.payloadKind } as Prisma.InputJsonValue,
+          },
+        });
+        this.logger.log(`Backfilled DeliverySubmitted for ${d.bountyId.slice(0, 14)}…`);
+      }
+    }
   }
 
   @Cron(CronExpression.EVERY_10_SECONDS)
@@ -274,6 +310,20 @@ export class WorkerEventHandler implements OnModuleInit {
       });
 
       this.logger.log(`Delivery stored: ${bountyId.slice(0, 14)}… → ${delivery.hash.slice(0, 14)}…`);
+
+      // Write DeliverySubmitted event so bounty state advances to "delivered"
+      await this.prisma.indexedEvent.upsert({
+        where: { transactionHash_logIndex: { transactionHash: delivery.hash, logIndex: 0 } },
+        update: {},
+        create: {
+          eventName: 'DeliverySubmitted',
+          bountyId,
+          blockNumber: 0n,
+          transactionHash: delivery.hash,
+          logIndex: 0,
+          data: { agentAddress, deliveryHash: delivery.hash, payloadKind: workResult.payloadKind } as Prisma.InputJsonValue,
+        },
+      });
 
       await this.prisma.workRun.updateMany({
         where: { bountyId, agentAddress },

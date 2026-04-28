@@ -11,6 +11,7 @@ import { SettlementService } from '../settlement/settlement.service';
 @Injectable()
 export class BrokerCronService {
   private readonly logger = new Logger(BrokerCronService.name);
+  private ticking = false;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -21,9 +22,15 @@ export class BrokerCronService {
 
   @Cron(CronExpression.EVERY_10_SECONDS)
   async tick() {
-    await this.processClaimWindows();
-    await this.processDeliveryDeadlines();
-    await this.processPosterSilence();
+    if (this.ticking) return;
+    this.ticking = true;
+    try {
+      await this.processClaimWindows();
+      await this.processDeliveryDeadlines();
+      await this.processPosterSilence();
+    } finally {
+      this.ticking = false;
+    }
   }
 
   private async processClaimWindows() {
@@ -40,6 +47,11 @@ export class BrokerCronService {
         where: { bountyId, eventName: 'BountyAssigned' },
       });
       if (alreadyAssigned) continue;
+
+      const alreadyScored = await this.prisma.scoringTrace.findFirst({
+        where: { bountyId },
+      });
+      if (alreadyScored) continue;
 
       const alreadyExpired = await this.prisma.indexedEvent.findFirst({
         where: { bountyId, eventName: { in: ['BountyExpired', 'BountyCancelled', 'BountyRefunded'] } },
