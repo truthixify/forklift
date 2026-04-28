@@ -11,7 +11,7 @@ export default function OperatorEarnings() {
   const { data: earningsData, isLoading: earningsLoading } = useEarnings(address ?? "");
   const withdrawMutation = useWithdrawEarnings();
 
-  const mine = (agentsData as Agent[] | undefined) ?? [];
+  const rawAg = agentsData as Record<string, unknown> | undefined; const mine: Agent[] = Array.isArray(rawAg) ? rawAg : Array.isArray(rawAg?.agents) ? rawAg.agents as Agent[] : [];
   const daily = earningsData?.daily ?? [];
   const lifetime = earningsData?.lifetime ?? 0;
   const withdrawable = earningsData?.withdrawable ?? 0;

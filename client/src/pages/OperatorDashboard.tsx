@@ -14,8 +14,9 @@ export default function OperatorDashboard() {
   const { data: profileData, isLoading: profileLoading } = useOperatorProfile(address ?? "");
   const { data: earningsData, isLoading: earningsLoading } = useEarnings(address ?? "");
 
-  const myAgents = (agentsData as Agent[] | undefined) ?? [];
-  const profile = profileData as Record<string, unknown> | undefined;
+  const rawAgents = agentsData as Record<string, unknown> | undefined;
+  const myAgents: Agent[] = Array.isArray(rawAgents) ? rawAgents : Array.isArray(rawAgents?.agents) ? rawAgents.agents as Agent[] : [];
+  const profile = (profileData as Record<string, unknown> | undefined)?.metrics as Record<string, unknown> | undefined;
 
   const daily = earningsData?.daily ?? [];
   const earn7d = daily.slice(-7);

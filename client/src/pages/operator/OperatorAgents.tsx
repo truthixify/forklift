@@ -18,7 +18,7 @@ export default function OperatorAgents() {
   const nav = useNavigate();
   const { address } = useWalletAuth();
   const { data: agentsData, isLoading } = useMyAgents(address ?? "");
-  const mine = (agentsData as Agent[] | undefined) ?? [];
+  const rawAg = agentsData as Record<string, unknown> | undefined; const mine: Agent[] = Array.isArray(rawAg) ? rawAg : Array.isArray(rawAg?.agents) ? rawAg.agents as Agent[] : [];
   const [filter, setFilter] = useState<Filter>("all");
 
   const [caps, setCaps] = useState<CapState>({});

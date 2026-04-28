@@ -121,10 +121,24 @@ export class ProfilesController {
       where: { operatorAddress: address },
     });
 
-    const metrics = await this.reputationService.computeOperatorMetrics(address);
+    let metrics;
+    try {
+      metrics = await this.reputationService.computeOperatorMetrics(address);
+    } catch {
+      metrics = {
+        agentsDeployed: agents.length,
+        agentsActive: agents.filter((a) => a.status === 'active').length,
+        agentsRetired: 0,
+        totalPaid: 0,
+        totalGhosted: 0,
+        totalDisputesLost: 0,
+        aggregateGhostRate: 0,
+        aggregateDisputeLossRate: 0,
+        totalEarnedUSDT: '0',
+        warningActive: false,
+      };
+    }
 
     return { user, agents, metrics };
   }
 }
-
-// this is appended — will be part of the class
