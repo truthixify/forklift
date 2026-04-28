@@ -7,6 +7,7 @@ import type { Prisma } from '@prisma/client';
 
 import { PrismaService } from '@forklift/database';
 import { hashData } from '@forklift/chain';
+import { NotificationService } from '@forklift/notifications';
 import { ParseService } from '../broker/parse.service';
 import { TemplateRegistry } from '@forklift/templates';
 
@@ -29,6 +30,7 @@ export class BountiesController {
     private readonly parseService: ParseService,
     private readonly prisma: PrismaService,
     private readonly templates: TemplateRegistry,
+    private readonly notifications: NotificationService,
   ) {}
 
   @Post('draft')
@@ -73,6 +75,19 @@ export class BountiesController {
     });
 
     this.logger.log(`Bounty confirmed: ${bountyId} (${title})`);
+
+    if (body.posterAddress) {
+      await this.notifications.notify({
+        userAddress: body.posterAddress,
+        category: 'bounty.live',
+        title: 'Bounty posted',
+        body: `"${title.slice(0, 60)}" is live. ${body.amount ?? 0} USDT escrowed.`,
+        payload: { bountyId, amount: body.amount },
+        ctaLabel: 'View bounty',
+        ctaHref: `/bounties/${bountyId}`,
+      });
+    }
+
     return {
       bountyId,
       hash: signature.hash,

@@ -17,9 +17,10 @@ export class NotificationService {
   ) {}
 
   async notify(args: NotifyArgs): Promise<void> {
+    const normalizedAddress = args.userAddress.toLowerCase();
     const notification = await this.prisma.notification.create({
       data: {
-        userAddress: args.userAddress,
+        userAddress: normalizedAddress,
         category: args.category,
         title: args.title,
         body: args.body,
@@ -29,7 +30,7 @@ export class NotificationService {
       },
     });
 
-    this.gateway.pushToUser(args.userAddress, {
+    this.gateway.pushToUser(normalizedAddress, {
       id: notification.id,
       category: args.category,
       title: args.title,
@@ -46,7 +47,7 @@ export class NotificationService {
   async getForUser(userAddress: string, unreadOnly: boolean, limit: number) {
     return this.prisma.notification.findMany({
       where: {
-        userAddress,
+        userAddress: userAddress.toLowerCase(),
         ...(unreadOnly ? { unread: true } : {}),
       },
       orderBy: { createdAt: 'desc' },
@@ -63,14 +64,14 @@ export class NotificationService {
 
   async markAllRead(userAddress: string) {
     return this.prisma.notification.updateMany({
-      where: { userAddress, unread: true },
+      where: { userAddress: userAddress.toLowerCase(), unread: true },
       data: { unread: false, readAt: new Date() },
     });
   }
 
   async getUnreadCount(userAddress: string): Promise<number> {
     return this.prisma.notification.count({
-      where: { userAddress, unread: true },
+      where: { userAddress: userAddress.toLowerCase(), unread: true },
     });
   }
 }

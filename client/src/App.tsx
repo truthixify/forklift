@@ -62,6 +62,7 @@ const App = () => (
                 {/* Poster dashboard */}
                 <Route path="/dashboard/poster" element={<PosterDashboard />} />
                 <Route path="/dashboard/poster/bounties" element={<PosterBounties />} />
+                <Route path="/dashboard/poster/bounties/:id" element={<BountyDetail />} />
                 <Route path="/dashboard/poster/history" element={<PosterHistory />} />
                 <Route path="/dashboard/poster/post" element={<PosterPost />} />
                 <Route path="/dashboard/poster/settings" element={<PosterSettings />} />

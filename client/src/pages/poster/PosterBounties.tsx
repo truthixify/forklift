@@ -99,7 +99,7 @@ export default function PosterBounties() {
       </div>
 
       <div className="space-y-3">
-        {list.map((b) => <BountyRow key={b.id} bounty={b} />)}
+        {list.map((b) => <BountyRow key={b.id} bounty={b} basePath="/dashboard/poster/bounties" />)}
         {list.length === 0 && (
           <div className="border-2 border-dashed border-ink/30 p-12 text-center">
             <MonoLabel ink className="block">NO BOUNTIES IN THIS VIEW</MonoLabel>

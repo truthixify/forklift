@@ -122,7 +122,7 @@ export default function Index() {
   );
 
   const kpiBounties = bounties.length;
-  const kpiUsdt = bounties.reduce((sum, b) => sum + (b.amount ?? 0), 0);
+  const kpiUsdt = Math.round(bounties.reduce((sum, b) => sum + (b.amount ?? 0), 0) * 100) / 100;
   const kpiAgents = bounties.filter((b) => b.agent).length;
   const kpiX402 = feedEvents.length;
   const { requireAuth, connected, role } = useWalletAuth();

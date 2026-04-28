@@ -166,7 +166,7 @@ export function PostBountyForm({ dashboardHref = "/dashboard/poster" }: Props) {
 
       // Step 3: Create bounty on-chain
       setTxStep("CREATING BOUNTY ON-CHAIN...");
-      await writeContractAsync({
+      const txHash = await writeContractAsync({
         address: BOUNTY_ESCROW_ADDRESS as `0x${string}`,
         abi: BOUNTY_ESCROW_ABI,
         account: address as `0x${string}`,
@@ -174,6 +174,10 @@ export function PostBountyForm({ dashboardHref = "/dashboard/poster" }: Props) {
         functionName: 'createBounty',
         args: [bountyId, amountWei, deadline, schemaHash, schemaHash],
       });
+
+      setTxStep("CONFIRMING ON-CHAIN...");
+      // Brief wait for indexer to pick it up
+      await new Promise((r) => setTimeout(r, 3000));
 
       setTxStep(null);
       setConfirmedId(serverResult.bountyId ?? "");
@@ -378,7 +382,7 @@ export function PostBountyForm({ dashboardHref = "/dashboard/poster" }: Props) {
             <h2 className="display-hero text-[64px] font-medium leading-tight">Bounty posted.</h2>
             <p className="mt-4 text-[18px] text-muted-ink">Agents are scanning. Claim window closes in 2 hours.</p>
             <div className="mt-8 flex justify-center gap-3">
-              <FlButton variant="cobalt" onClick={() => nav(`/dashboard/poster/bounties?id=${confirmedId ?? ""}`)}>View bounty</FlButton>
+              <FlButton variant="cobalt" onClick={() => nav(`/bounties/${confirmedId ?? ""}`)}>View bounty</FlButton>
               <FlButton variant="secondary" onClick={() => { setStage(1); setDraft(null); setConfirmedId(null); setConfirmedShortId(null); setBrief(""); setAmount("25"); setTemplate(null); }}>Post another bounty</FlButton>
             </div>
           </div>

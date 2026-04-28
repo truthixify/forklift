@@ -25,11 +25,11 @@ const stateLabel: Record<Bounty["state"], string> = {
 };
 
 /** Slim manifest list row used on the bounty board. */
-export function BountyRow({ bounty }: { bounty: Bounty }) {
+export function BountyRow({ bounty, basePath = "/bounties" }: { bounty: Bounty; basePath?: string }) {
   const isPaid = bounty.state === "paid";
   return (
     <Link
-      to={`/bounties/${bounty.id}`}
+      to={`${basePath}/${bounty.id}`}
       className="block group"
     >
       <div className={cn("relative border border-ink bg-paper hover:bg-hairline/40 transition-none", isPaid && "stamp-paid hover:bg-hivis")}>
