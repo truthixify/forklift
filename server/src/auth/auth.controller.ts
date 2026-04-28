@@ -2,10 +2,13 @@
 
 import { Controller, Post, Get, Body, Req, Res } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
+import { randomUUID } from 'node:crypto';
 import type { Request, Response } from 'express';
 
 import { AuthService } from '@forklift/auth';
 import { PrismaService } from '@forklift/database';
+
+const nonceStore = new Map<string, { nonce: string; expiresAt: number }>();
 
 @ApiTags('auth')
 @Controller('auth')
@@ -15,11 +18,29 @@ export class AuthController {
     private readonly prisma: PrismaService,
   ) {}
 
+  @Get('nonce')
+  getNonce() {
+    const nonce = randomUUID();
+    const id = randomUUID();
+    nonceStore.set(id, { nonce, expiresAt: Date.now() + 5 * 60 * 1000 });
+    return { id, nonce };
+  }
+
   @Post('signin')
   async signIn(
-    @Body() body: { address: string; message: string; signature: string },
+    @Body() body: { address: string; message: string; signature: string; nonceId?: string },
     @Res({ passthrough: true }) res: Response,
   ) {
+    if (body.nonceId) {
+      const stored = nonceStore.get(body.nonceId);
+      if (!stored || stored.expiresAt < Date.now()) {
+        return { error: 'Nonce expired or invalid' };
+      }
+      if (!body.message.includes(stored.nonce)) {
+        return { error: 'Nonce mismatch' };
+      }
+      nonceStore.delete(body.nonceId);
+    }
     const valid = this.authService.verifySignature(body.address, body.message, body.signature);
     if (!valid) {
       return { error: 'Invalid signature' };

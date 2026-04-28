@@ -167,4 +167,50 @@ export class OperatorsController {
       amount: body.amount,
     };
   }
+
+  @Get('earnings/:operatorAddress')
+  async getEarnings(@Param('operatorAddress') operatorAddress: string) {
+    const agents = await this.prisma.workerAgent.findMany({
+      where: { operatorAddress },
+      select: { passportAddress: true, name: true, displayName: true },
+    });
+
+    const agentAddresses = agents.map((a) => a.passportAddress);
+
+    const records = await this.prisma.bountyRecord.findMany({
+      where: { party: { in: agentAddresses }, side: 'agent', outcome: 'paid' },
+      orderBy: { occurredAt: 'desc' },
+    });
+
+    const dailyMap = new Map<string, number>();
+    let lifetime = 0;
+    for (const r of records) {
+      const day = r.occurredAt.toISOString().slice(0, 10);
+      const net = Number(r.netUsdt.toString()) / 1e18;
+      dailyMap.set(day, (dailyMap.get(day) ?? 0) + net);
+      lifetime += net;
+    }
+
+    const today = new Date();
+    const daily: number[] = [];
+    for (let i = 29; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - i);
+      const key = d.toISOString().slice(0, 10);
+      daily.push(dailyMap.get(key) ?? 0);
+    }
+
+    const perAgent = agents.map((a) => {
+      const agentRecords = records.filter((r) => r.party === a.passportAddress);
+      const total = agentRecords.reduce((sum, r) => sum + Number(r.netUsdt.toString()) / 1e18, 0);
+      return { address: a.passportAddress, name: a.displayName || a.name, total };
+    });
+
+    return {
+      daily,
+      lifetime,
+      withdrawable: lifetime,
+      perAgent,
+    };
+  }
 }

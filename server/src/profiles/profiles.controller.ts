@@ -126,3 +126,5 @@ export class ProfilesController {
     return { user, agents, metrics };
   }
 }
+
+// this is appended — will be part of the class

@@ -12,6 +12,14 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 // Auth
+export async function fetchNonce(): Promise<{ id: string; nonce: string }> {
+  return apiFetch('/auth/nonce');
+}
+
+export async function fetchSignIn(body: { address: string; message: string; signature: string; nonceId: string }) {
+  return apiFetch('/auth/signin', { method: 'POST', body: JSON.stringify(body) });
+}
+
 export function useMe() {
   return useQuery({ queryKey: ['me'], queryFn: () => apiFetch('/auth/me'), retry: false });
 }
@@ -105,6 +113,19 @@ export function useDeployAgent() {
     mutationFn: (body: Record<string, unknown>) =>
       apiFetch('/operators/agents', { method: 'POST', body: JSON.stringify(body) }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['myAgents'] }),
+  });
+}
+
+export function useEarnings(operatorAddress: string) {
+  return useQuery({
+    queryKey: ['earnings', operatorAddress],
+    queryFn: () => apiFetch<{
+      daily: number[];
+      lifetime: number;
+      withdrawable: number;
+      perAgent: Array<{ address: string; name: string; total: number }>;
+    }>(`/operators/earnings/${operatorAddress}`),
+    enabled: !!operatorAddress,
   });
 }
 
