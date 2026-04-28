@@ -17,10 +17,17 @@ export class NotificationService {
   ) {}
 
   async notify(args: NotifyArgs): Promise<void> {
-    const normalizedAddress = args.userAddress.toLowerCase();
+    const addr = args.userAddress;
+
+    const user = await this.prisma.user.findFirst({
+      where: { passportAddress: { equals: addr, mode: 'insensitive' } },
+    });
+
+    const resolvedAddress = user?.passportAddress ?? addr;
+
     const notification = await this.prisma.notification.create({
       data: {
-        userAddress: normalizedAddress,
+        userAddress: resolvedAddress,
         category: args.category,
         title: args.title,
         body: args.body,
@@ -30,7 +37,7 @@ export class NotificationService {
       },
     });
 
-    this.gateway.pushToUser(normalizedAddress, {
+    this.gateway.pushToUser(resolvedAddress, {
       id: notification.id,
       category: args.category,
       title: args.title,
@@ -41,13 +48,13 @@ export class NotificationService {
       createdAt: notification.createdAt.toISOString(),
     });
 
-    this.logger.debug(`Notification sent to ${args.userAddress}: ${args.category}`);
+    this.logger.debug(`Notification sent to ${resolvedAddress}: ${args.category}`);
   }
 
   async getForUser(userAddress: string, unreadOnly: boolean, limit: number) {
     return this.prisma.notification.findMany({
       where: {
-        userAddress: userAddress.toLowerCase(),
+        userAddress: { equals: userAddress, mode: 'insensitive' },
         ...(unreadOnly ? { unread: true } : {}),
       },
       orderBy: { createdAt: 'desc' },
@@ -64,14 +71,14 @@ export class NotificationService {
 
   async markAllRead(userAddress: string) {
     return this.prisma.notification.updateMany({
-      where: { userAddress: userAddress.toLowerCase(), unread: true },
+      where: { userAddress: { equals: userAddress, mode: 'insensitive' }, unread: true },
       data: { unread: false, readAt: new Date() },
     });
   }
 
   async getUnreadCount(userAddress: string): Promise<number> {
     return this.prisma.notification.count({
-      where: { userAddress: userAddress.toLowerCase(), unread: true },
+      where: { userAddress: { equals: userAddress, mode: 'insensitive' }, unread: true },
     });
   }
 }
