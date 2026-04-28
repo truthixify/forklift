@@ -5,6 +5,7 @@ import { ConfigService } from '@nestjs/config';
 import type { Prisma } from '@prisma/client';
 
 import { PrismaService } from '@forklift/database';
+import { NotificationService } from '@forklift/notifications';
 import {
   createBrokerWalletClient,
   signRelease,
@@ -21,6 +22,7 @@ export class SettlementService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
+    private readonly notifications: NotificationService,
   ) {}
 
   async release(bountyId: string, agentAddress: string, reason: string): Promise<string | null> {
@@ -177,5 +179,34 @@ export class SettlementService {
     });
 
     this.logger.log(`Recorded ${args.outcome} for bounty ${args.bountyId}`);
+
+    if (args.outcome === 'paid') {
+      await this.notifications.notify({
+        userAddress: args.posterAddress,
+        category: 'bounty.delivered',
+        title: 'Bounty settled',
+        body: `Bounty ${args.bountyId.slice(0, 10)}… settled. Agent paid.`,
+        payload: { bountyId: args.bountyId },
+        ctaLabel: 'View history',
+        ctaHref: `/dashboard/poster/history`,
+      });
+      await this.notifications.notify({
+        userAddress: args.agentAddress,
+        category: 'agent.paid',
+        title: 'Payment received',
+        body: `You earned from bounty ${args.bountyId.slice(0, 10)}….`,
+        payload: { bountyId: args.bountyId },
+      });
+    }
+
+    if (args.outcome === 'rejected') {
+      await this.notifications.notify({
+        userAddress: args.agentAddress,
+        category: 'agent.rejected',
+        title: 'Delivery rejected',
+        body: `Your delivery for ${args.bountyId.slice(0, 10)}… was rejected.`,
+        payload: { bountyId: args.bountyId },
+      });
+    }
   }
 }

@@ -6,6 +6,7 @@ import type { Prisma } from '@prisma/client';
 
 import { PrismaService } from '@forklift/database';
 import { SubgraphClient } from '@forklift/chain';
+import { NotificationService } from '@forklift/notifications';
 import { FeedGateway } from '../ws-gateway/feed.gateway';
 
 @Injectable()
@@ -17,6 +18,7 @@ export class IndexerService implements OnModuleInit {
     private readonly prisma: PrismaService,
     private readonly subgraph: SubgraphClient,
     private readonly feedGateway: FeedGateway,
+    private readonly notifications: NotificationService,
   ) {}
 
   onModuleInit() {
@@ -73,6 +75,20 @@ export class IndexerService implements OnModuleInit {
         });
 
         this.logger.debug(`Indexed BountyCreated ${event.bountyId} from subgraph`);
+
+        const poster = event.poster;
+        if (poster) {
+          const amtUsdt = Number(BigInt(event.amountUSDT)) / 1e18;
+          await this.notifications.notify({
+            userAddress: poster,
+            category: 'bounty.live',
+            title: 'Bounty posted',
+            body: `Your bounty is live on the board (${amtUsdt.toFixed(2)} USDT).`,
+            payload: { bountyId: event.bountyId, amount: amtUsdt },
+            ctaLabel: 'View bounty',
+            ctaHref: `/dashboard/poster/bounties?id=${event.bountyId}`,
+          });
+        }
       } catch (error) {
         if (error instanceof Error && error.message.includes('Unique constraint')) {
           continue;

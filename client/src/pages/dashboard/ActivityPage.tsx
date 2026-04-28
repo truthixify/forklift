@@ -1,7 +1,9 @@
 import { useMemo, useState } from "react";
 import { DashboardLayout } from "@/components/shell/DashboardLayout";
 import { MonoLabel } from "@/components/manifest/Manifest";
-import { ActivityRow, getActivityForRole } from "@/components/shell/NotificationsBell";
+import { ActivityRow } from "@/components/shell/NotificationsBell";
+import { useNotifications, useMarkRead } from "@/lib/api";
+import { useWalletAuth } from "@/components/auth/WalletAuth";
 
 type Role = "poster" | "operator";
 
@@ -11,14 +13,39 @@ const KIND_FILTERS: { id: string; label: string }[] = [
   { id: "delivered", label: "DELIVERED" },
   { id: "paid",      label: "SETTLED" },
   { id: "earned",    label: "EARNED" },
-  { id: "cap",       label: "CAP HIT" },
   { id: "dispute",   label: "DISPUTES" },
 ];
 
+const CATEGORY_TO_KIND: Record<string, string> = {
+  "bounty.live": "claim",
+  "bounty.assigned": "claim",
+  "bounty.delivered": "delivered",
+  "agent.paid": "earned",
+  "agent.rejected": "dispute",
+  "dispute.opened": "dispute",
+  "dispute.resolved": "dispute",
+};
+
 export default function ActivityPage({ role }: { role: Role }) {
-  const all = useMemo(() => getActivityForRole(role), [role]);
+  const { address } = useWalletAuth();
+  const { data: notifData } = useNotifications(address ?? "", false);
+  const markRead = useMarkRead();
   const [filter, setFilter] = useState<string>("all");
   const [unreadOnly, setUnreadOnly] = useState(false);
+
+  const all = useMemo(() => {
+    const raw = (notifData as Record<string, unknown>)?.notifications as Array<Record<string, unknown>> | undefined;
+    if (!Array.isArray(raw)) return [];
+    return raw.map((n) => ({
+      group: "ACTIVITY",
+      kind: (CATEGORY_TO_KIND[(n.category as string) ?? ""] ?? "claim") as "claim" | "delivered" | "paid" | "earned" | "cap" | "dispute",
+      body: (n.body as string) ?? (n.title as string) ?? "",
+      ts: n.createdAt ? new Date(n.createdAt as string).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }) : "",
+      href: (n.ctaHref as string) ?? undefined,
+      unread: (n.unread as boolean) ?? false,
+      id: n.id as number,
+    }));
+  }, [notifData]);
 
   const list = all.filter((n) => {
     if (filter !== "all" && n.kind !== filter) return false;
@@ -27,6 +54,10 @@ export default function ActivityPage({ role }: { role: Role }) {
   });
 
   const unread = all.filter((n) => n.unread).length;
+
+  const handleMarkAllRead = () => {
+    all.filter((n) => n.unread).forEach((n) => markRead.mutate(n.id));
+  };
 
   return (
     <DashboardLayout
@@ -51,7 +82,7 @@ export default function ActivityPage({ role }: { role: Role }) {
               />
               UNREAD ONLY
             </label>
-            <button className="mono-small hover:text-cobalt">MARK ALL READ</button>
+            <button className="mono-small hover:text-cobalt" onClick={handleMarkAllRead}>MARK ALL READ</button>
           </div>
         </div>
 
@@ -75,7 +106,7 @@ export default function ActivityPage({ role }: { role: Role }) {
           {list.length === 0 ? (
             <div className="p-12 text-center">
               <MonoLabel ink className="block">NO EVENTS</MonoLabel>
-              <p className="mono-small text-muted-ink mt-2">Try a different filter.</p>
+              <p className="mono-small text-muted-ink mt-2">{address ? "No activity yet." : "Connect wallet to see activity."}</p>
             </div>
           ) : (
             list.map((n, i) => <ActivityRow key={i} n={n} />)
