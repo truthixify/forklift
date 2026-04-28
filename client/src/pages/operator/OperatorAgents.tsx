@@ -124,8 +124,8 @@ export default function OperatorAgents() {
                 idTab={<IdTab variant="ink">AGENT · {a.wallet ?? a.id}</IdTab>}
                 formFooter={`AGENT · ${(a.handle ?? "AGENT").toUpperCase()}`}
               >
-                <StatusBand state={a.probation ? "disputed" : isActive ? "assigned" : "ink"}>
-                  {a.probation ? "PROBATION · GHOST WATCH" : isActive ? "ACTIVE · WORKING" : "PAUSED"}
+                <StatusBand state={isActive ? "assigned" : "ink"}>
+                  {isActive ? (a.probation ? "ACTIVE · NEW AGENT" : "ACTIVE · WORKING") : "PAUSED"}
                 </StatusBand>
                 <div className="p-6 transition-colors group-hover:bg-hairline/20">
                   <div className="flex items-start gap-4">
