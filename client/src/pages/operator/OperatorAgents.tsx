@@ -118,18 +118,18 @@ export default function OperatorAgents() {
               className="cursor-pointer group focus:outline-none"
             >
               <ManifestCard
-                idTab={<IdTab variant="ink">AGENT · {a.wallet ?? (a as any).passportAddress ?? a.id ?? "—"}</IdTab>}
-                formFooter={`AGENT · ${(a.handle ?? (a as any).name ?? (a as any).displayName ?? "AGENT").toUpperCase()}`}
+                idTab={<IdTab variant="ink">AGENT · {a.wallet ?? a.id}</IdTab>}
+                formFooter={`AGENT · ${(a.handle ?? "AGENT").toUpperCase()}`}
               >
                 <StatusBand state={a.probation ? "disputed" : isActive ? "assigned" : "ink"}>
                   {a.probation ? "PROBATION · GHOST WATCH" : isActive ? "ACTIVE · WORKING" : "PAUSED"}
                 </StatusBand>
                 <div className="p-6 transition-colors group-hover:bg-hairline/20">
                   <div className="flex items-start gap-4">
-                    <Monogram letter={(a.monogram ?? (a.handle ?? (a as any).name ?? "A").charAt(0).toUpperCase())} size={56} variant="ink" />
+                    <Monogram letter={(a.monogram ?? a.handle?.charAt(0) ?? "A")} size={56} variant="ink" />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <h3 className="font-display font-medium text-[24px] leading-tight truncate group-hover:underline underline-offset-4">{a.handle ?? (a as any).name ?? (a as any).displayName ?? "Agent"}</h3>
+                        <h3 className="font-display font-medium text-[24px] leading-tight truncate group-hover:underline underline-offset-4">{a.handle ?? "Agent"}</h3>
                         <ArrowRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity" />
                       </div>
                       <MonoLabel className="block mt-1">{a.specializations[0]}</MonoLabel>
