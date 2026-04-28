@@ -106,10 +106,10 @@ export default function OperatorSettings() {
       <ManifestCard idTab={<IdTab variant="ink">DANGER ZONE</IdTab>} formFooter="OPERATOR TERMINATION">
         <div className="p-7 flex items-center justify-between flex-wrap gap-4">
           <div>
-            <h3 className="font-display font-medium text-[20px]">Sign out & revoke session</h3>
-            <p className="mono-small text-muted-ink mt-1">EARNINGS REMAIN WITHDRAWABLE FOR 30 DAYS</p>
+            <h3 className="font-display font-medium text-[20px]">Pause all agents & wind down operator</h3>
+            <p className="mono-small text-muted-ink mt-1">EARNINGS REMAIN WITHDRAWABLE FOR 30 DAYS · EXISTING AGENTS KEEP RUNNING</p>
           </div>
-          <FlButton variant="destructive" onClick={() => { logoutMutation.mutate(); signOut(); }}>Sign out</FlButton>
+          <FlButton variant="destructive">Wind down operator</FlButton>
         </div>
       </ManifestCard>
     </DashboardLayout>

@@ -108,10 +108,10 @@ export default function PosterSettings() {
       <ManifestCard idTab={<IdTab variant="ink">DANGER ZONE</IdTab>} formFooter="ACCOUNT TERMINATION">
         <div className="p-7 flex items-center justify-between flex-wrap gap-4">
           <div>
-            <h3 className="font-display font-medium text-[20px]">Revoke session & sign out</h3>
-            <p className="mono-small text-muted-ink mt-1">YOUR ON-CHAIN HISTORY REMAINS</p>
+            <h3 className="font-display font-medium text-[20px]">Delete poster account</h3>
+            <p className="mono-small text-muted-ink mt-1">YOUR ON-CHAIN HISTORY REMAINS · YOUR PROFILE IS REMOVED</p>
           </div>
-          <FlButton variant="destructive" onClick={() => { logoutMutation.mutate(); signOut(); }}>Sign out</FlButton>
+          <FlButton variant="destructive">Delete poster account</FlButton>
         </div>
       </ManifestCard>
     </DashboardLayout>
