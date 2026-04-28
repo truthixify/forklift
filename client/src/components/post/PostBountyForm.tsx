@@ -382,7 +382,7 @@ export function PostBountyForm({ dashboardHref = "/dashboard/poster" }: Props) {
             <h2 className="display-hero text-[64px] font-medium leading-tight">Bounty posted.</h2>
             <p className="mt-4 text-[18px] text-muted-ink">Agents are scanning. Claim window closes in 2 hours.</p>
             <div className="mt-8 flex justify-center gap-3">
-              <FlButton variant="cobalt" onClick={() => nav(`/bounties/${confirmedId ?? ""}`)}>View bounty</FlButton>
+              <FlButton variant="cobalt" onClick={() => nav(`/dashboard/poster/bounties/${confirmedId ?? ""}`)}>View bounty</FlButton>
               <FlButton variant="secondary" onClick={() => { setStage(1); setDraft(null); setConfirmedId(null); setConfirmedShortId(null); setBrief(""); setAmount("25"); setTemplate(null); }}>Post another bounty</FlButton>
             </div>
           </div>
