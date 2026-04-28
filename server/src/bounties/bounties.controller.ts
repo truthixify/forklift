@@ -201,7 +201,42 @@ export class BountiesController {
       orderBy: { indexedAt: 'asc' },
     });
 
-    return { signature, events };
+    const proposals = await this.prisma.proposal.findMany({
+      where: { bountyId: id },
+      orderBy: { submittedAt: 'desc' },
+    });
+
+    const claims = await Promise.all(
+      proposals.map(async (p) => {
+        const agent = await this.prisma.workerAgent.findUnique({
+          where: { passportAddress: p.agentAddress },
+        });
+        return {
+          agentAddress: p.agentAddress,
+          agentName: agent?.displayName ?? agent?.name ?? p.agentAddress.slice(0, 10),
+          proposalText: p.proposalText,
+          etaMinutes: p.etaMinutes,
+          submittedAt: p.submittedAt,
+        };
+      }),
+    );
+
+    const scoringTrace = await this.prisma.scoringTrace.findFirst({
+      where: { bountyId: id },
+      orderBy: { scoredAt: 'desc' },
+    });
+
+    const delivery = await this.prisma.delivery.findFirst({
+      where: { bountyId: id },
+      orderBy: { submittedAt: 'desc' },
+    });
+
+    const verifierResult = await this.prisma.verifierResult.findFirst({
+      where: { bountyId: id },
+      orderBy: { recordedAt: 'desc' },
+    });
+
+    return { signature, events, claims, scoringTrace, delivery, verifierResult };
   }
 
   @Get('templates/list')

@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { useParams, Link } from "react-router-dom";
 import { ArrowUpRight } from "lucide-react";
 import { AppShell } from "@/components/shell/AppShell";
-import { ManifestCard, IdTab, StatusBand, Brackets, MonoLabel, Tag, FormFooter, Monogram, PaidStamp } from "@/components/manifest/Manifest";
+import { ManifestCard, IdTab, StatusBand, Brackets, MonoLabel, Tag, Monogram, PaidStamp } from "@/components/manifest/Manifest";
 import { FlButton } from "@/components/manifest/FlButton";
 import { ActivityRow } from "@/components/manifest/ActivityRow";
 import { useBounty, useAgents } from "@/lib/api";
@@ -97,14 +97,20 @@ export default function BountyDetail() {
     return toPoster({ id: bounty.poster, handle: bounty.poster });
   }, [data, bounty]);
 
+  const claimsData = useMemo(() => {
+    const raw = data as Record<string, unknown> | undefined;
+    const arr = raw?.claims as Array<Record<string, unknown>> | undefined;
+    return arr ?? [];
+  }, [data]);
+
+  const scoringTrace = useMemo(() => {
+    const raw = data as Record<string, unknown> | undefined;
+    return raw?.scoringTrace as Record<string, unknown> | undefined;
+  }, [data]);
+
   const winner = useMemo(() => {
     if (!bounty?.agent) return undefined;
     return agents.find((a) => a.id === bounty.agent);
-  }, [agents, bounty]);
-
-  const claims = useMemo(() => {
-    if (!bounty) return [];
-    return agents.slice(0, Math.min(bounty.claims, 4));
   }, [agents, bounty]);
 
   const activity: ActivityEvent[] = useMemo(() => {
@@ -210,20 +216,21 @@ export default function BountyDetail() {
                 </div>
                 <div className="col-span-12 md:col-span-5 flex flex-col gap-3 md:items-end">
                   {bounty.state === "live" && (
-                    <>
-                      <FlButton variant="cobalt" size="lg">Claim bounty</FlButton>
-                      <FlButton variant="secondary" size="sm">Save for later</FlButton>
-                    </>
+                    <div className="text-right">
+                      <Tag variant="cobalt">AGENTS SCANNING</Tag>
+                      <p className="mono-small text-muted-ink mt-2 max-w-[24ch]">
+                        Autonomous agents will claim within the claim window.
+                      </p>
+                    </div>
                   )}
                   {bounty.state === "assigned" && (
                     <Tag variant="lime">ASSIGNED TO {winner?.handle.toUpperCase()}</Tag>
                   )}
                   {bounty.state === "delivered" && (
-                    <div className="flex flex-col gap-2 items-end">
-                      <FlButton variant="cobalt">Approve delivery</FlButton>
-                      <FlButton variant="secondary" size="sm">Reject</FlButton>
-                      <FlButton variant="destructive" size="sm">Open dispute</FlButton>
-                    </div>
+                    <Tag variant="cobalt">DELIVERY SUBMITTED</Tag>
+                  )}
+                  {bounty.state === "paid" && (
+                    <Tag variant="hivis">SETTLED</Tag>
                   )}
                 </div>
               </div>
@@ -332,53 +339,68 @@ export default function BountyDetail() {
 
           {/* RIGHT — claims, scoring trace, timeline */}
           <div className="col-span-12 lg:col-span-4 space-y-6">
-            <ManifestCard idTab={<IdTab variant="ink">CLAIMS · {bounty.claims}</IdTab>} formFooter="CLAIMS LIST">
+            <ManifestCard idTab={<IdTab variant="ink">CLAIMS · {claimsData.length}</IdTab>} formFooter="CLAIMS LIST">
               <div className="p-5">
                 <MonoLabel ink>CANDIDATES</MonoLabel>
-                <div className="mt-4 space-y-3">
-                  {claims.map((a, i) => (
-                    <div key={a.id} className="relative border border-ink p-3 flex items-center gap-3">
-                      {i === 0 && bounty.state !== "live" && <span className="absolute left-0 top-0 bottom-0 w-1 bg-hivis" />}
-                      <Monogram letter={a.monogram} size={32} variant="ink" />
-                      <div className="flex-1 min-w-0">
-                        <div className="font-display font-medium text-[14px]">{a.handle}</div>
-                        <MonoLabel className="block">{a.paid} PAID · {a.rating}★</MonoLabel>
-                      </div>
-                      {bounty.state !== "live" && (
-                        <span className="mono-small text-cobalt">{(0.92 - i * 0.06).toFixed(2)}</span>
-                      )}
-                    </div>
-                  ))}
-                </div>
+                {claimsData.length === 0 ? (
+                  <div className="mt-4 border border-dashed border-ink/30 p-6 text-center">
+                    <MonoLabel className="block">AWAITING AGENT CLAIMS</MonoLabel>
+                    <p className="mono-small text-muted-ink mt-1">Active agents are evaluating this bounty.</p>
+                  </div>
+                ) : (
+                  <div className="mt-4 space-y-3">
+                    {claimsData.map((c, i) => {
+                      const name = (c.agentName as string) ?? "Agent";
+                      return (
+                        <div key={`${c.agentAddress}-${i}`} className="relative border border-ink p-3">
+                          {i === 0 && bounty.state !== "live" && <span className="absolute left-0 top-0 bottom-0 w-1 bg-hivis" />}
+                          <div className="flex items-center gap-3">
+                            <Monogram letter={name.charAt(0).toUpperCase()} size={32} variant="ink" />
+                            <div className="flex-1 min-w-0">
+                              <div className="font-display font-medium text-[14px]">{name}</div>
+                              <MonoLabel className="block">ETA {c.etaMinutes as number}m</MonoLabel>
+                            </div>
+                          </div>
+                          <p className="mt-2 text-[13px] text-muted-ink leading-snug">{(c.proposalText as string)?.slice(0, 120)}{(c.proposalText as string)?.length > 120 ? "..." : ""}</p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             </ManifestCard>
 
-            {bounty.state !== "live" && winner && (
-              <ManifestCard idTab={<IdTab variant="ink">SCORING TRACE</IdTab>} formFooter="MODEL · GEMINI-2.5-FLASH">
-                <StatusBand state="ink" pulse={false}>ASSIGNED TO {winner.handle.toUpperCase()} · {claims.length} SCORED</StatusBand>
+            {scoringTrace && (
+              <ManifestCard idTab={<IdTab variant="ink">SCORING TRACE</IdTab>} formFooter="BROKER SCORING">
+                <StatusBand state="ink" pulse={false}>
+                  {winner ? `ASSIGNED TO ${winner.handle.toUpperCase()} · ` : ""}{claimsData.length} SCORED
+                </StatusBand>
                 <div className="p-5 space-y-3">
-                  {claims.map((a, i) => (
-                    <div key={a.id} className={`border ${i === 0 ? "border-ink" : "border-hairline"} p-3 relative`}>
-                      {i === 0 && <span className="absolute left-0 top-0 bottom-0 w-1 bg-hivis" />}
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-2">
-                          <span className="mono-small text-muted-ink">#{i + 1}</span>
-                          <Monogram letter={a.monogram} size={24} variant="ink" />
-                          <span className="font-display font-medium text-[14px]">{a.handle}</span>
-                          {a.probation && <Tag variant="alarm">PROB</Tag>}
-                        </div>
-                        <Brackets size="sm"><span className="font-display font-medium text-[18px]">{(0.92 - i * 0.06).toFixed(2)}</span></Brackets>
-                      </div>
-                      <div className="grid grid-cols-4 gap-1 mt-2">
-                        {["REL", "REL2", "PRP", "FRH"].map((k, j) => (
-                          <div key={k} className="text-center">
-                            <MonoLabel className="block text-[9px]">{k}</MonoLabel>
-                            <div className="mono-inline mt-0.5">{(0.85 + Math.sin(i + j) * 0.1).toFixed(2)}</div>
+                  {((scoringTrace.traceJson as Record<string, unknown>)?.candidates as Array<Record<string, unknown>> ?? []).map((c, i) => {
+                    const components = c.components as Record<string, number> | undefined;
+                    return (
+                      <div key={`${c.agentAddress}-${i}`} className={`border ${i === 0 ? "border-ink" : "border-hairline"} p-3 relative`}>
+                        {i === 0 && <span className="absolute left-0 top-0 bottom-0 w-1 bg-hivis" />}
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <span className="mono-small text-muted-ink">#{(c.rank as number) ?? i + 1}</span>
+                            <span className="font-display font-medium text-[14px]">{(c.agentAddress as string).slice(0, 10)}…</span>
                           </div>
-                        ))}
+                          <Brackets size="sm"><span className="font-display font-medium text-[18px]">{((c.adjusted as number) ?? 0).toFixed(2)}</span></Brackets>
+                        </div>
+                        {components && (
+                          <div className="grid grid-cols-4 gap-1 mt-2">
+                            {(["relevance", "reliability", "proposalQuality", "freshness"] as const).map((k) => (
+                              <div key={k} className="text-center">
+                                <MonoLabel className="block text-[9px]">{k.slice(0, 3).toUpperCase()}</MonoLabel>
+                                <div className="mono-inline mt-0.5">{(components[k] ?? 0).toFixed(2)}</div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </ManifestCard>
             )}

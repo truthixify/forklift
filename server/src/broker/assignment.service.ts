@@ -92,6 +92,28 @@ export class AssignmentService {
       this.logger.warn('BROKER_PRIVATE_KEY or BOUNTY_ESCROW_ADDRESS not set; skipping on-chain assignment');
     }
 
+    await this.prisma.indexedEvent.upsert({
+      where: {
+        transactionHash_logIndex: {
+          transactionHash: scoringHash,
+          logIndex: 1,
+        },
+      },
+      update: {},
+      create: {
+        eventName: 'BountyAssigned',
+        bountyId,
+        blockNumber: 0n,
+        transactionHash: scoringHash,
+        logIndex: 1,
+        data: {
+          assignedAgent: winner.agentAddress,
+          waitlist,
+          scoringHash,
+        } as Prisma.InputJsonValue,
+      },
+    });
+
     return {
       assignedAgent: winner.agentAddress,
       waitlist,
