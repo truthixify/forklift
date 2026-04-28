@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import { DashboardLayout } from "@/components/shell/DashboardLayout";
 import { ManifestCard, IdTab, StatusBand, MonoLabel, Tag, PulseDot, Monogram, Brackets } from "@/components/manifest/Manifest";
@@ -12,6 +12,8 @@ export default function PosterBountyDetail() {
   const { data: bountyData, isLoading } = useBounty(id ?? "");
   const approveMutation = useApproveBounty();
   const rejectMutation = useRejectBounty();
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
   const raw = bountyData as Record<string, unknown> | undefined;
   const sig = raw?.signature as Record<string, unknown> | undefined;
@@ -162,29 +164,67 @@ export default function PosterBountyDetail() {
               </div>
             )}
 
-            {state === "delivered" && address && (
+            {successMsg && (
+              <div className="bg-lime text-ink border border-ink px-4 py-3 mt-2">
+                <MonoLabel>{successMsg}</MonoLabel>
+              </div>
+            )}
+            {errorMsg && (
+              <div className="bg-alarm/20 text-ink border border-alarm px-4 py-3 mt-2">
+                <MonoLabel>{errorMsg}</MonoLabel>
+              </div>
+            )}
+            {state === "delivered" && address && !successMsg && (
               <div className="flex gap-3 pt-2">
                 <FlButton
                   variant="cobalt"
-                  onClick={() => approveMutation.mutate({ bountyId: id!, posterAddress: address, rating: 5 })}
-                  disabled={approveMutation.isPending}
+                  onClick={() => {
+                    setErrorMsg(null);
+                    approveMutation.mutate(
+                      { bountyId: id!, posterAddress: address, rating: 5 },
+                      { onSuccess: () => setSuccessMsg("BOUNTY APPROVED — AGENT PAID"), onError: (e) => setErrorMsg(e.message) },
+                    );
+                  }}
+                  disabled={approveMutation.isPending || rejectMutation.isPending}
                 >
                   {approveMutation.isPending ? "Approving..." : "Approve"}
                 </FlButton>
                 <FlButton
                   variant="secondary"
-                  onClick={() => rejectMutation.mutate({ bountyId: id!, posterAddress: address, reason: "Quality below expectations" })}
-                  disabled={rejectMutation.isPending}
+                  onClick={() => {
+                    setErrorMsg(null);
+                    rejectMutation.mutate(
+                      { bountyId: id!, posterAddress: address, reason: "Quality below expectations" },
+                      { onSuccess: () => setSuccessMsg("DELIVERY REJECTED"), onError: (e) => setErrorMsg(e.message) },
+                    );
+                  }}
+                  disabled={approveMutation.isPending || rejectMutation.isPending}
                 >
                   {rejectMutation.isPending ? "Rejecting..." : "Reject"}
                 </FlButton>
                 <FlButton
                   variant="destructive"
-                  onClick={() => rejectMutation.mutate({ bountyId: id!, posterAddress: address, reason: "Disputing delivery quality" })}
-                  disabled={rejectMutation.isPending}
+                  onClick={() => {
+                    setErrorMsg(null);
+                    rejectMutation.mutate(
+                      { bountyId: id!, posterAddress: address, reason: "Disputing delivery quality" },
+                      { onSuccess: () => setSuccessMsg("DISPUTE OPENED"), onError: (e) => setErrorMsg(e.message) },
+                    );
+                  }}
+                  disabled={approveMutation.isPending || rejectMutation.isPending}
                 >
                   Dispute
                 </FlButton>
+              </div>
+            )}
+            {state === "paid" && (
+              <div className="bg-lime text-ink border border-ink px-4 py-3 mt-2">
+                <MonoLabel>BOUNTY APPROVED — SETTLED</MonoLabel>
+              </div>
+            )}
+            {state === "refunded" && (
+              <div className="bg-hairline text-ink border border-ink px-4 py-3 mt-2">
+                <MonoLabel>BOUNTY REFUNDED</MonoLabel>
               </div>
             )}
           </div>

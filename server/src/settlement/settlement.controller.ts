@@ -1,6 +1,6 @@
 // Copyright 2025 Forklift. Apache-2.0 license.
 
-import { Controller, Post, Param, Body, Logger } from '@nestjs/common';
+import { Controller, Post, Param, Body, Logger, BadRequestException, ConflictException } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 
 import type { Prisma } from '@prisma/client';
@@ -59,13 +59,11 @@ export class SettlementController {
   ) {
     try {
       const already = await this.isAlreadySettled(bountyId);
-      if (already) return { error: `Bounty already ${already}` };
+      if (already) throw new ConflictException(`Bounty already ${already}`);
 
       const ctx = await this.getBountyContext(bountyId);
 
-      if (!ctx.delivery) {
-        return { error: 'No delivery found for this bounty' };
-      }
+      if (!ctx.delivery) throw new BadRequestException('No delivery found for this bounty');
 
       const txHash = await this.settlementService.release(bountyId, ctx.delivery.agentAddress, 'poster-approved');
 
@@ -108,7 +106,7 @@ export class SettlementController {
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
       this.logger.error(`Approve failed for ${bountyId}: ${msg}`);
-      return { error: `Settlement failed: ${msg}` };
+      throw new BadRequestException(`Settlement failed: ${msg}`);
     }
   }
 
@@ -119,7 +117,7 @@ export class SettlementController {
   ) {
     try {
       const already = await this.isAlreadySettled(bountyId);
-      if (already) return { error: `Bounty already ${already}` };
+      if (already) throw new ConflictException(`Bounty already ${already}`);
 
       const ctx = await this.getBountyContext(bountyId);
       const brokerAlsoRejected = ctx.verifierResult && !ctx.verifierResult.passed;
@@ -179,7 +177,7 @@ export class SettlementController {
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
       this.logger.error(`Reject failed for ${bountyId}: ${msg}`);
-      return { error: `Rejection failed: ${msg}` };
+      throw new BadRequestException(`Rejection failed: ${msg}`);
     }
   }
 
@@ -190,7 +188,7 @@ export class SettlementController {
   ) {
     try {
       const dispute = await this.prisma.dispute.findUnique({ where: { bountyId } });
-      if (!dispute) return { error: 'No dispute found' };
+      if (!dispute) throw new BadRequestException('No dispute found');
 
       const ctx = await this.getBountyContext(bountyId);
       const decisionHash = hashData(JSON.stringify({ bountyId, decision: body.decision, reasoning: body.reasoning }));
@@ -252,7 +250,7 @@ export class SettlementController {
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
       this.logger.error(`Dispute resolve failed for ${bountyId}: ${msg}`);
-      return { error: `Dispute resolution failed: ${msg}` };
+      throw new BadRequestException(`Dispute resolution failed: ${msg}`);
     }
   }
 }

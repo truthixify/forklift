@@ -190,23 +190,30 @@ export class SettlementService {
         ctaLabel: 'View history',
         ctaHref: `/dashboard/poster/history`,
       });
-      await this.notifications.notify({
-        userAddress: args.agentAddress,
-        category: 'agent.paid',
-        title: 'Payment received',
-        body: `You earned from bounty ${args.bountyId.slice(0, 10)}….`,
-        payload: { bountyId: args.bountyId },
-      });
+      // Agent might not have a user row — notify the operator instead
+      const agent = await this.prisma.workerAgent.findUnique({ where: { passportAddress: args.agentAddress } });
+      if (agent) {
+        await this.notifications.notify({
+          userAddress: agent.operatorAddress,
+          category: 'agent.paid',
+          title: 'Agent earned',
+          body: `${agent.displayName} earned from bounty ${args.bountyId.slice(0, 10)}….`,
+          payload: { bountyId: args.bountyId, agentAddress: args.agentAddress },
+        });
+      }
     }
 
     if (args.outcome === 'rejected') {
-      await this.notifications.notify({
-        userAddress: args.agentAddress,
-        category: 'agent.rejected',
-        title: 'Delivery rejected',
-        body: `Your delivery for ${args.bountyId.slice(0, 10)}… was rejected.`,
-        payload: { bountyId: args.bountyId },
-      });
+      const agent = await this.prisma.workerAgent.findUnique({ where: { passportAddress: args.agentAddress } });
+      if (agent) {
+        await this.notifications.notify({
+          userAddress: agent.operatorAddress,
+          category: 'agent.rejected',
+          title: 'Delivery rejected',
+          body: `${agent.displayName}'s delivery for ${args.bountyId.slice(0, 10)}… was rejected.`,
+          payload: { bountyId: args.bountyId, agentAddress: args.agentAddress },
+        });
+      }
     }
   }
 
