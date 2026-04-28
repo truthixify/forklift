@@ -5,7 +5,8 @@ import { ManifestCard, IdTab, StatusBand, MonoLabel, Tag, Monogram, Brackets } f
 import { FlButton } from "@/components/manifest/FlButton";
 import { FlInput } from "@/components/manifest/FlInput";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
-import { useAgent } from "@/lib/api";
+import { useWalletAuth } from "@/components/auth/WalletAuth";
+import { useAgent, usePauseAgent, useResumeAgent, useRetireAgent, useUpdateSpendCaps, useWithdrawEarnings } from "@/lib/api";
 import { BountyRow } from "@/components/manifest/Cards";
 import { ArrowLeft } from "lucide-react";
 import type { Agent, Bounty } from "@/data/mock";
@@ -55,7 +56,12 @@ export default function OperatorAgentDetail() {
   const { id } = useParams();
   const nav = useNavigate();
   const { data, isLoading, isError } = useAgent(id ?? "");
-
+  const pauseAgent = usePauseAgent();
+  const resumeAgent = useResumeAgent();
+  const retireAgent = useRetireAgent();
+  const updateCaps = useUpdateSpendCaps();
+  const withdrawMutation = useWithdrawEarnings();
+  const { address: operatorAddress } = useWalletAuth();
   const agent: Agent | null = useMemo(() => {
     const raw = data as Record<string, unknown> | undefined;
     if (!raw) return null;
@@ -70,7 +76,7 @@ export default function OperatorAgentDetail() {
   const [draftPerTask, setDraftPerTask] = useState(perTask);
   const [draftDaily, setDraftDaily] = useState(daily);
 
-  const [balance, setBalance] = useState(agent ? Math.max(0.5, (agent.rating ?? 4) * 1.4) : 0);
+  const [balance, setBalance] = useState(0);
   const [fundOpen, setFundOpen] = useState(false);
   const [fundAmount, setFundAmount] = useState("25.00");
   const [withdrawOpen, setWithdrawOpen] = useState(false);
@@ -101,7 +107,8 @@ export default function OperatorAgentDetail() {
     );
   }
 
-  const spend = 1.2 + (agent.rating ?? 4) * 0.15;
+  const agentExt = agent as Agent & { todaySpend?: number; spendCaps?: Record<string, string> };
+  const spend = agentExt.todaySpend ?? 0;
   const cap = parseFloat(perTask) || 2.5;
   const pct = Math.min(100, (spend / cap) * 100);
   const near = pct > 70;
@@ -113,6 +120,7 @@ export default function OperatorAgentDetail() {
   };
 
   const saveRetune = () => {
+    updateCaps.mutate({ address: agent.id, perTaskUSDT: String(BigInt(Math.round(parseFloat(draftPerTask) * 1e18))), globalDailyUSDT: String(BigInt(Math.round(parseFloat(draftDaily) * 1e18))) });
     setPerTask(draftPerTask);
     setDaily(draftDaily);
     setRetuneOpen(false);
@@ -189,7 +197,7 @@ export default function OperatorAgentDetail() {
               ["AVG TIME", agent.avgTime],
               ["REVISION RATE", `${(agent.revisionRate * 100).toFixed(0)}%`],
               ["REPEAT POSTERS", `${(agent.repeatPosters * 100).toFixed(0)}%`],
-              ["THIS MONTH", `${(agent.earnings * 0.18).toFixed(0)} USDT`],
+              ["THIS MONTH", `${agent.earnings.toFixed(0)} USDT`],
             ].map(([l, v]) => (
               <div key={l} className="border border-ink p-4">
                 <MonoLabel className="block">{l}</MonoLabel>
@@ -239,12 +247,12 @@ export default function OperatorAgentDetail() {
           <FlButton variant="secondary" size="md" onClick={() => { setFundAmount("25.00"); setFundOpen(true); }}>
             Fund x402 wallet
           </FlButton>
-          <FlButton variant="secondary" size="md" onClick={() => setActive((v) => !v)}>
+          <FlButton variant="secondary" size="md" onClick={() => { if (active) { pauseAgent.mutate(agent.id); setActive(false); } else { resumeAgent.mutate(agent.id); setActive(true); } }}>
             {active ? "Pause agent" : "Resume agent"}
           </FlButton>
           <FlButton variant="ghost" size="md" onClick={openRetune}>Retune cap</FlButton>
           <div className="flex-1" />
-          <FlButton variant="destructive" size="md">Wind down agent</FlButton>
+          <FlButton variant="destructive" size="md" onClick={() => { retireAgent.mutate(agent.id); nav("/dashboard/operator/agents"); }}>Wind down agent</FlButton>
         </div>
       </ManifestCard>
 

@@ -100,11 +100,14 @@ export default function OperatorAgents() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         {list.map((a) => {
-          const state = caps[a.id] ?? { perTask: "2.50", daily: "50.00", active: a.active };
+          const todaySpend = (a as any).todaySpend ?? 0;
+          const capObj = (a as any).spendCaps ?? {};
+          const capPerTask = capObj.perTaskUSDT ? Number(BigInt(capObj.perTaskUSDT)) / 1e18 : 2.5;
+          const state = caps[a.id] ?? { perTask: capPerTask.toFixed(2), daily: "50.00", active: a.active };
           const isActive = state.active;
-          const cap = parseFloat(state.perTask) || 2.5;
+          const cap = parseFloat(state.perTask) || capPerTask;
           const spend = 1.2 + (a.rating ?? 4) * 0.15;
-          const pct = Math.min(100, (spend / cap) * 100);
+          const pct = cap > 0 ? Math.min(100, (todaySpend / cap) * 100) : 0;
           const near = pct > 70;
           const detailHref = `/dashboard/operator/agents/${a.id}`;
 
@@ -136,7 +139,7 @@ export default function OperatorAgents() {
                     </div>
                     <div className="text-right">
                       <MonoLabel>TODAY</MonoLabel>
-                      <div className="font-display font-medium text-[20px]">+{(a.earnings * 0.012).toFixed(2)} USDT</div>
+                      <div className="font-display font-medium text-[20px]">+{todaySpend.toFixed(2)} USDT</div>
                     </div>
                   </div>
                   <div className="hairline my-4" />
@@ -145,7 +148,7 @@ export default function OperatorAgents() {
                     <div><MonoLabel className="block">RATING</MonoLabel><span className="mono-inline">{a.rating}★</span></div>
                     <div><MonoLabel className="block">EARNED</MonoLabel><span className="mono-inline">{a.earnings.toFixed(0)}</span></div>
                   </div>
-                  <MonoLabel className="block mb-2">TASK SPEND CAP · {spend.toFixed(2)} / {cap.toFixed(2)} USDT</MonoLabel>
+                  <MonoLabel className="block mb-2">TASK SPEND CAP · {todaySpend.toFixed(2)} / {cap.toFixed(2)} USDT</MonoLabel>
                   <div className="h-3 bg-paper border border-ink relative">
                     <div className={`absolute inset-y-0 left-0 ${near ? "bg-alarm" : "bg-hivis"}`} style={{ width: `${pct}%` }} />
                   </div>

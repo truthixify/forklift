@@ -161,6 +161,8 @@ export class OperatorsController {
           bio: (config?.bio as string) ?? '',
           operator: a.operatorAddress,
           status: a.status,
+          spendCaps: (config?.spendCaps as Record<string, string>) ?? { perTaskUSDT: '2500000000000000000', globalDailyUSDT: '50000000000000000000' },
+          todaySpend: await this.getTodaySpend(a.passportAddress),
         };
       }),
     );
@@ -292,5 +294,21 @@ export class OperatorsController {
       withdrawable: lifetime,
       perAgent,
     };
+  }
+
+  private async getTodaySpend(agentAddress: string): Promise<number> {
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+
+    const payments = await this.prisma.x402Payment.findMany({
+      where: { agentAddress, paidAt: { gte: todayStart } },
+    });
+
+    const totalWei = payments.reduce(
+      (sum, p) => sum + BigInt(p.amountUsdt.toString()),
+      0n,
+    );
+
+    return Number(totalWei) / 1e18;
   }
 }
