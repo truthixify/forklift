@@ -21,9 +21,19 @@ export class IndexerService implements OnModuleInit {
     private readonly notifications: NotificationService,
   ) {}
 
-  onModuleInit() {
-    this.lastPolledTimestamp = Math.floor(Date.now() / 1000) - 3600;
-    this.logger.log('Indexer started — polling subgraph for events');
+  async onModuleInit() {
+    const latest = await this.prisma.indexedEvent.findFirst({
+      orderBy: { blockNumber: 'desc' },
+      select: { indexedAt: true },
+    });
+
+    if (latest) {
+      this.lastPolledTimestamp = Math.floor(latest.indexedAt.getTime() / 1000);
+    } else {
+      this.lastPolledTimestamp = Math.floor(Date.now() / 1000) - 3600;
+    }
+
+    this.logger.log(`Indexer started — resuming from timestamp ${this.lastPolledTimestamp}`);
   }
 
   @Cron(CronExpression.EVERY_10_SECONDS)
@@ -37,15 +47,23 @@ export class IndexerService implements OnModuleInit {
       }
 
       try {
-        await this.prisma.indexedEvent.upsert({
+        const existing = await this.prisma.indexedEvent.findUnique({
           where: {
             transactionHash_logIndex: {
               transactionHash: event.transactionHash_,
               logIndex: 0,
             },
           },
-          update: {},
-          create: {
+          select: { id: true },
+        });
+
+        if (existing) {
+          this.logger.debug(`Skipping already-indexed event ${event.bountyId}`);
+          continue;
+        }
+
+        await this.prisma.indexedEvent.create({
+          data: {
             eventName: 'BountyCreated',
             bountyId: event.bountyId,
             blockNumber: BigInt(event.block_number),

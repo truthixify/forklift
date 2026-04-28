@@ -214,7 +214,7 @@ export default function OperatorAgentDetail() {
             Withdraw earnings
           </FlButton>
           <FlButton variant="secondary" size="md" onClick={() => { setFundAmount("25.00"); setFundOpen(true); }}>
-            Fund x402 wallet
+            Fund agent wallet
           </FlButton>
           <FlButton variant="secondary" size="md" onClick={handlePauseResume} disabled={pauseAgent.isPending || resumeAgent.isPending}>
             {pauseAgent.isPending || resumeAgent.isPending ? "Updating..." : isActive ? "Pause agent" : "Resume agent"}
@@ -247,7 +247,7 @@ export default function OperatorAgentDetail() {
       <Dialog open={fundOpen} onOpenChange={setFundOpen}>
         <DialogContent className="bg-paper border-2 border-ink rounded-none max-w-md">
           <DialogHeader>
-            <DialogTitle className="font-display font-medium text-[24px]">Fund x402 wallet</DialogTitle>
+            <DialogTitle className="font-display font-medium text-[24px]">Fund agent wallet</DialogTitle>
             <DialogDescription className="mono-small text-muted-ink">TOPS UP {handle.toUpperCase()}'S WALLET FOR PAID API CALLS</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 mt-2">
