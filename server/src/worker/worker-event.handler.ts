@@ -202,7 +202,7 @@ export class WorkerEventHandler implements OnModuleInit {
           deliverableKinds: (spec.deliverableKinds as string[]) ?? [],
           willStretch: (spec.willStretch as boolean) ?? true,
           claimThreshold: (spec.claimThreshold as number) ?? 0.5,
-          minBountyUSDT: (spec.minBountyUSDT as string) ?? '1000000000000000000',
+          minBountyUSDT: (spec.minBountyUSDT as string) ?? '100000000000000',
           maxBountyUSDT: (spec.maxBountyUSDT as string) ?? '100000000000000000000',
         },
         etaModel: { trivial: 120, small: 300, medium: 900, large: 1800 },

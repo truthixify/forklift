@@ -55,7 +55,7 @@ export class OperatorsController {
       deliverableKinds: [],
       willStretch: true,
       claimThreshold: 0.5,
-      minBountyUSDT: '1000000000000000000',
+      minBountyUSDT: '100000000000000',
       maxBountyUSDT: '100000000000000000000',
     };
 
@@ -165,6 +165,8 @@ export class OperatorsController {
           operator: a.operatorAddress,
           status: a.status,
           spendCaps: (config?.spendCaps as Record<string, string>) ?? { perTaskUSDT: '2500000000000000000', globalDailyUSDT: '50000000000000000000' },
+          minBountyUSDT: (spec.minBountyUSDT as string) ?? '100000000000000',
+          maxBountyUSDT: (spec.maxBountyUSDT as string) ?? '100000000000000000000',
           todaySpend: await this.getTodaySpend(a.passportAddress),
         };
       }),
@@ -188,7 +190,7 @@ export class OperatorsController {
   @Patch('agents/:address/spend-caps')
   async updateSpendCaps(
     @Param('address') address: string,
-    @Body() body: { perTaskUSDT: string; globalDailyUSDT: string },
+    @Body() body: { perTaskUSDT: string; globalDailyUSDT: string; minBountyUSDT?: string; maxBountyUSDT?: string },
   ) {
     const agent = await this.prisma.workerAgent.findUnique({
       where: { passportAddress: address },
@@ -196,7 +198,14 @@ export class OperatorsController {
     if (!agent) return { error: 'Agent not found' };
 
     const config = agent.profileConfig as Record<string, unknown>;
-    config['spendCaps'] = body;
+    config['spendCaps'] = { perTaskUSDT: body.perTaskUSDT, globalDailyUSDT: body.globalDailyUSDT };
+
+    if (body.minBountyUSDT || body.maxBountyUSDT) {
+      const spec = (config.specialization as Record<string, unknown>) ?? {};
+      if (body.minBountyUSDT) spec.minBountyUSDT = body.minBountyUSDT;
+      if (body.maxBountyUSDT) spec.maxBountyUSDT = body.maxBountyUSDT;
+      config.specialization = spec;
+    }
 
     const updated = await this.prisma.workerAgent.update({
       where: { passportAddress: address },

@@ -34,6 +34,8 @@ export default function OperatorAgentDetail() {
   const [retuneOpen, setRetuneOpen] = useState(false);
   const [draftPerTask, setDraftPerTask] = useState("2.50");
   const [draftDaily, setDraftDaily] = useState("50.00");
+  const [draftMinBounty, setDraftMinBounty] = useState("0.0001");
+  const [draftMaxBounty, setDraftMaxBounty] = useState("100.00");
   const [withdrawOpen, setWithdrawOpen] = useState(false);
   const [withdrawAmount, setWithdrawAmount] = useState("");
   const [fundingTx, setFundingTx] = useState(false);
@@ -74,12 +76,18 @@ export default function OperatorAgentDetail() {
   const spendCaps = (agent.spendCaps ?? {}) as Record<string, string>;
   const capPerTask = spendCaps.perTaskUSDT ? Number(BigInt(spendCaps.perTaskUSDT)) / 1e18 : 2.5;
   const capDaily = spendCaps.globalDailyUSDT ? Number(BigInt(spendCaps.globalDailyUSDT)) / 1e18 : 50;
+  const minBountyRaw = (agent.minBountyUSDT ?? '100000000000000') as string;
+  const maxBountyRaw = (agent.maxBountyUSDT ?? '100000000000000000000') as string;
+  const minBounty = Number(BigInt(minBountyRaw)) / 1e18;
+  const maxBounty = Number(BigInt(maxBountyRaw)) / 1e18;
   const pct = capPerTask > 0 ? Math.min(100, (todaySpend / capPerTask) * 100) : 0;
   const near = pct > 70;
 
   const openRetune = () => {
     setDraftPerTask(capPerTask.toFixed(2));
     setDraftDaily(capDaily.toFixed(2));
+    setDraftMinBounty(minBounty < 0.01 ? minBounty.toString() : minBounty.toFixed(4));
+    setDraftMaxBounty(maxBounty.toFixed(2));
     setRetuneOpen(true);
   };
 
@@ -89,8 +97,10 @@ export default function OperatorAgentDetail() {
         address: wallet,
         perTaskUSDT: String(BigInt(Math.round(parseFloat(draftPerTask) * 1e18))),
         globalDailyUSDT: String(BigInt(Math.round(parseFloat(draftDaily) * 1e18))),
+        minBountyUSDT: String(BigInt(Math.round(parseFloat(draftMinBounty) * 1e18))),
+        maxBountyUSDT: String(BigInt(Math.round(parseFloat(draftMaxBounty) * 1e18))),
       },
-      { onSuccess: () => { setRetuneOpen(false); setActionMsg(`Caps updated: ${draftPerTask} / ${draftDaily} USDT.`); } },
+      { onSuccess: () => { setRetuneOpen(false); setActionMsg(`Caps updated.`); } },
     );
   };
 
@@ -183,6 +193,14 @@ export default function OperatorAgentDetail() {
                 <MonoLabel className="block">DAILY CAP</MonoLabel>
                 <div className="font-display font-medium text-[24px] mt-1">{capDaily.toFixed(2)} <span className="mono-small text-muted-ink">USDT</span></div>
               </div>
+              <div className="border border-ink p-4">
+                <MonoLabel className="block">MIN BOUNTY</MonoLabel>
+                <div className="font-display font-medium text-[24px] mt-1">{minBounty < 0.01 ? minBounty.toString() : minBounty.toFixed(4)} <span className="mono-small text-muted-ink">USDT</span></div>
+              </div>
+              <div className="border border-ink p-4">
+                <MonoLabel className="block">MAX BOUNTY</MonoLabel>
+                <div className="font-display font-medium text-[24px] mt-1">{maxBounty.toFixed(2)} <span className="mono-small text-muted-ink">USDT</span></div>
+              </div>
             </div>
             <FlButton variant="cobalt" onClick={openRetune}>Retune caps</FlButton>
           </div>
@@ -213,7 +231,7 @@ export default function OperatorAgentDetail() {
             Withdraw earnings
           </FlButton>
           <FlButton variant="secondary" size="md" onClick={() => { setFundAmount("25.00"); setFundOpen(true); }}>
-            Fund agent wallet
+            Fund x402 wallet
           </FlButton>
           <FlButton variant="secondary" size="md" onClick={handlePauseResume} disabled={pauseAgent.isPending || resumeAgent.isPending}>
             {pauseAgent.isPending || resumeAgent.isPending ? "Updating..." : isActive ? "Pause agent" : "Resume agent"}
@@ -235,6 +253,12 @@ export default function OperatorAgentDetail() {
           <div className="space-y-4 mt-2">
             <FlInput label="MAX SPEND PER TASK" unit="USDT" type="number" step="0.01" value={draftPerTask} onChange={(e) => setDraftPerTask(e.target.value)} />
             <FlInput label="DAILY CAP" unit="USDT" type="number" step="0.01" value={draftDaily} onChange={(e) => setDraftDaily(e.target.value)} />
+            <div className="hairline" />
+            <MonoLabel ink className="block">BOUNTY ACCEPTANCE RANGE</MonoLabel>
+            <div className="grid grid-cols-2 gap-3">
+              <FlInput label="MIN BOUNTY" unit="USDT" type="number" step="0.0001" value={draftMinBounty} onChange={(e) => setDraftMinBounty(e.target.value)} />
+              <FlInput label="MAX BOUNTY" unit="USDT" type="number" step="1" value={draftMaxBounty} onChange={(e) => setDraftMaxBounty(e.target.value)} />
+            </div>
           </div>
           <DialogFooter className="mt-4 gap-2">
             <FlButton variant="secondary" onClick={() => setRetuneOpen(false)}>Cancel</FlButton>
@@ -246,7 +270,7 @@ export default function OperatorAgentDetail() {
       <Dialog open={fundOpen} onOpenChange={setFundOpen}>
         <DialogContent className="bg-paper border-2 border-ink rounded-none max-w-md">
           <DialogHeader>
-            <DialogTitle className="font-display font-medium text-[24px]">Fund agent wallet</DialogTitle>
+            <DialogTitle className="font-display font-medium text-[24px]">Fund x402 wallet</DialogTitle>
             <DialogDescription className="mono-small text-muted-ink">TOPS UP {handle.toUpperCase()}'S WALLET FOR PAID API CALLS</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 mt-2">

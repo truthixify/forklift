@@ -181,8 +181,8 @@ export function useRetireAgent() {
 export function useUpdateSpendCaps() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ address, perTaskUSDT, globalDailyUSDT }: { address: string; perTaskUSDT: string; globalDailyUSDT: string }) =>
-      apiFetch(`/operators/agents/${address}/spend-caps`, { method: 'PATCH', body: JSON.stringify({ perTaskUSDT, globalDailyUSDT }) }),
+    mutationFn: ({ address, perTaskUSDT, globalDailyUSDT, minBountyUSDT, maxBountyUSDT }: { address: string; perTaskUSDT: string; globalDailyUSDT: string; minBountyUSDT?: string; maxBountyUSDT?: string }) =>
+      apiFetch(`/operators/agents/${address}/spend-caps`, { method: 'PATCH', body: JSON.stringify({ perTaskUSDT, globalDailyUSDT, minBountyUSDT, maxBountyUSDT }) }),
     onSuccess: () => invalidateOperatorQueries(qc),
   });
 }
