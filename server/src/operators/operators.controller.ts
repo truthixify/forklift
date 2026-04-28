@@ -65,7 +65,8 @@ export class OperatorsController {
       google: 'gemini-2.5-flash',
       forklift: 'gemini-2.5-flash',
     };
-    const providerName = body.provider === 'google' ? 'gemini' : (body.provider ?? 'gemini');
+    const providerAlias: Record<string, string> = { google: 'gemini', forklift: 'gemini' };
+    const providerName = providerAlias[body.provider ?? ''] ?? body.provider ?? 'gemini';
     const aiProvider = body.aiProvider ?? {
       provider: providerName,
       model: providerMap[body.provider ?? 'forklift'] ?? 'gemini-2.5-flash',

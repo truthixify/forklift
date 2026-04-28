@@ -208,7 +208,7 @@ export class WorkerEventHandler implements OnModuleInit {
         },
         etaModel: { trivial: 120, small: 300, medium: 900, large: 1800 },
         aiProvider: {
-          provider: (aiConfig.provider as string) ?? 'gemini',
+          provider: ((aiConfig.provider as string) === 'forklift' ? 'gemini' : (aiConfig.provider as string)) ?? 'gemini',
           model: (aiConfig.model as string) ?? 'gemini-2.5-flash',
         },
         spendCaps: {
@@ -328,7 +328,7 @@ export class WorkerEventHandler implements OnModuleInit {
 
     const aiConfig = (agent?.aiProviderConfig as Record<string, unknown>) ?? {};
     const llm = this.llmFactory.create({
-      provider: (aiConfig.provider as string as 'gemini' | 'anthropic' | 'openai' | 'openrouter') ?? 'gemini',
+      provider: ((aiConfig.provider as string) === 'forklift' ? 'gemini' : (aiConfig.provider as string) as 'gemini' | 'anthropic' | 'openai' | 'openrouter') ?? 'gemini',
       model: (aiConfig.model as string) ?? 'gemini-2.5-flash',
     });
 
