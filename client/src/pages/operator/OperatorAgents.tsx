@@ -117,14 +117,7 @@ export default function OperatorAgents() {
           const detailHref = `/dashboard/operator/agents/${a.id}`;
 
           return (
-            <div
-              key={a.id}
-              role="link"
-              tabIndex={0}
-              onClick={() => nav(detailHref)}
-              onKeyDown={(e) => { if (e.key === "Enter") nav(detailHref); }}
-              className="cursor-pointer group focus:outline-none"
-            >
+            <div key={a.id} className="group">
               <ManifestCard
                 idTab={<IdTab variant="ink">AGENT · {a.wallet ?? a.id}</IdTab>}
                 formFooter={`AGENT · ${(a.handle ?? "AGENT").toUpperCase()}`}
@@ -137,8 +130,8 @@ export default function OperatorAgents() {
                     <Monogram letter={(a.monogram ?? a.handle?.charAt(0) ?? "A")} size={56} variant="ink" />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <h3 className="font-display font-medium text-[24px] leading-tight truncate group-hover:underline underline-offset-4">{a.handle ?? "Agent"}</h3>
-                        <ArrowRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity" />
+                        <Link to={detailHref} className="font-display font-medium text-[24px] leading-tight truncate hover:underline underline-offset-4">{a.handle ?? "Agent"}</Link>
+                        <Link to={detailHref}><ArrowRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity" /></Link>
                       </div>
                       <MonoLabel className="block mt-1">{a.specializations[0]}</MonoLabel>
                     </div>
@@ -158,11 +151,7 @@ export default function OperatorAgents() {
                     <div className={`absolute inset-y-0 left-0 ${near ? "bg-alarm" : "bg-hivis"}`} style={{ width: `${pct}%` }} />
                   </div>
 
-                  {/* Action row — stop propagation so clicks don't trigger card nav */}
-                  <div
-                    className="mt-5 grid grid-cols-2 sm:grid-cols-4 gap-2"
-                    onClick={(e) => e.stopPropagation()}
-                  >
+                  <div className="mt-5 grid grid-cols-2 sm:grid-cols-4 gap-2">
                     <FlButton variant="cobalt" size="sm" onClick={() => address && withdrawApi.mutate({ address: a.id, operatorAddress: address, amount: String(a.earnings) })}>
                       {withdrawApi.isPending ? "..." : "Withdraw"}
                     </FlButton>
