@@ -3,6 +3,7 @@
 import { Controller, Post, Param, Body, Logger } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 
+import type { Prisma } from '@prisma/client';
 import { PrismaService } from '@forklift/database';
 import { hashData } from '@forklift/chain';
 import { SettlementService } from './settlement.service';
@@ -17,40 +18,87 @@ export class SettlementController {
     private readonly prisma: PrismaService,
   ) {}
 
+  private async getBountyContext(bountyId: string) {
+    const signature = await this.prisma.bountySignature.findFirst({ where: { bountyId } });
+    const createdEvent = await this.prisma.indexedEvent.findFirst({
+      where: { bountyId, eventName: 'BountyCreated' },
+    });
+    const evData = (createdEvent?.data as Record<string, unknown>) ?? {};
+    const delivery = await this.prisma.delivery.findFirst({
+      where: { bountyId },
+      orderBy: { submittedAt: 'desc' },
+    });
+    const verifierResult = await this.prisma.verifierResult.findFirst({
+      where: { bountyId },
+      orderBy: { recordedAt: 'desc' },
+    });
+
+    return {
+      signature,
+      delivery,
+      verifierResult,
+      amountUsdt: (evData.amountUSDT as string) ?? '0',
+      templateId: signature?.templateId ?? null,
+      deliverableKind: delivery?.payloadKind ?? 'json',
+      verifierType: verifierResult?.verifierType ?? (signature?.verifierConfig as Record<string, unknown>)?.type as string ?? 'llm-judge',
+    };
+  }
+
   @Post(':bountyId/approve')
   async approve(
     @Param('bountyId') bountyId: string,
     @Body() body: { posterAddress: string; rating?: number; comment?: string },
   ) {
-    const signature = await this.prisma.bountySignature.findFirst({ where: { bountyId } });
-    const delivery = await this.prisma.delivery.findFirst({
-      where: { bountyId },
-      orderBy: { submittedAt: 'desc' },
-    });
+    try {
+      const ctx = await this.getBountyContext(bountyId);
 
-    if (!delivery) {
-      return { error: 'No delivery found for this bounty' };
+      if (!ctx.delivery) {
+        return { error: 'No delivery found for this bounty' };
+      }
+
+      const txHash = await this.settlementService.release(bountyId, ctx.delivery.agentAddress, 'poster-approved');
+
+      await this.settlementService.recordBountyOutcome({
+        bountyId,
+        agentAddress: ctx.delivery.agentAddress,
+        posterAddress: body.posterAddress,
+        outcome: 'paid',
+        brokerDecision: ctx.verifierResult?.passed ? 'pass' : 'fail',
+        posterDecision: 'approve',
+        platformDecision: null,
+        amountUsdt: ctx.amountUsdt,
+        templateId: ctx.templateId,
+        deliverableKind: ctx.deliverableKind,
+        verifierType: ctx.verifierType,
+        posterRating: body.rating ?? 5,
+        posterComment: body.comment ?? null,
+      });
+
+      const paidHash = hashData(JSON.stringify({ bountyId, action: 'paid', at: Date.now() }));
+      await this.prisma.indexedEvent.upsert({
+        where: { transactionHash_logIndex: { transactionHash: paidHash, logIndex: 0 } },
+        update: {},
+        create: {
+          eventName: 'BountyPaid',
+          bountyId,
+          blockNumber: 0n,
+          transactionHash: paidHash,
+          logIndex: 0,
+          data: {
+            agentAddress: ctx.delivery.agentAddress,
+            posterAddress: body.posterAddress,
+            amountUsdt: ctx.amountUsdt,
+          } as Prisma.InputJsonValue,
+        },
+      });
+
+      this.logger.log(`Bounty ${bountyId.slice(0, 14)}… approved — agent ${ctx.delivery.agentAddress.slice(0, 12)} paid`);
+      return { settled: true, action: 'release', txHash };
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      this.logger.error(`Approve failed for ${bountyId}: ${msg}`);
+      return { error: `Settlement failed: ${msg}` };
     }
-
-    const txHash = await this.settlementService.release(bountyId, delivery.agentAddress, 'poster-approved');
-
-    await this.settlementService.recordBountyOutcome({
-      bountyId,
-      agentAddress: delivery.agentAddress,
-      posterAddress: body.posterAddress,
-      outcome: 'paid',
-      brokerDecision: 'pass',
-      posterDecision: 'approve',
-      platformDecision: null,
-      amountUsdt: '0',
-      templateId: signature?.templateId ?? null,
-      deliverableKind: delivery.payloadKind,
-      verifierType: 'llm-judge',
-      posterRating: body.rating ?? null,
-      posterComment: body.comment ?? null,
-    });
-
-    return { settled: true, action: 'release', txHash };
   }
 
   @Post(':bountyId/reject')
@@ -58,56 +106,67 @@ export class SettlementController {
     @Param('bountyId') bountyId: string,
     @Body() body: { posterAddress: string; reason: string },
   ) {
-    const verifierResult = await this.prisma.verifierResult.findFirst({
-      where: { bountyId },
-      orderBy: { recordedAt: 'desc' },
-    });
+    try {
+      const ctx = await this.getBountyContext(bountyId);
+      const brokerAlsoRejected = ctx.verifierResult && !ctx.verifierResult.passed;
 
-    const brokerAlsoRejected = verifierResult && !verifierResult.passed;
+      if (brokerAlsoRejected && ctx.delivery) {
+        const txHash = await this.settlementService.refund(bountyId, 1, body.reason);
 
-    if (brokerAlsoRejected) {
-      const delivery = await this.prisma.delivery.findFirst({
-        where: { bountyId },
-        orderBy: { submittedAt: 'desc' },
-      });
-
-      const txHash = await this.settlementService.refund(bountyId, 1, body.reason);
-
-      if (delivery) {
-        const signature = await this.prisma.bountySignature.findFirst({ where: { bountyId } });
         await this.settlementService.recordBountyOutcome({
           bountyId,
-          agentAddress: delivery.agentAddress,
+          agentAddress: ctx.delivery.agentAddress,
           posterAddress: body.posterAddress,
           outcome: 'rejected',
           brokerDecision: 'fail',
           posterDecision: 'reject',
           platformDecision: null,
-          amountUsdt: '0',
-          templateId: signature?.templateId ?? null,
-          deliverableKind: delivery.payloadKind,
-          verifierType: verifierResult?.verifierType ?? 'unknown',
+          amountUsdt: ctx.amountUsdt,
+          templateId: ctx.templateId,
+          deliverableKind: ctx.deliverableKind,
+          verifierType: ctx.verifierType,
           posterRating: null,
-          posterComment: null,
+          posterComment: body.reason,
         });
+
+        const refundHash = hashData(JSON.stringify({ bountyId, action: 'refund', at: Date.now() }));
+        await this.prisma.indexedEvent.upsert({
+          where: { transactionHash_logIndex: { transactionHash: refundHash, logIndex: 0 } },
+          update: {},
+          create: {
+            eventName: 'BountyRefunded',
+            bountyId,
+            blockNumber: 0n,
+            transactionHash: refundHash,
+            logIndex: 0,
+            data: { posterAddress: body.posterAddress, reason: body.reason } as Prisma.InputJsonValue,
+          },
+        });
+
+        this.logger.log(`Bounty ${bountyId.slice(0, 14)}… rejected + refunded (broker agreed)`);
+        return { settled: true, action: 'refund', txHash, brokerAgreed: true };
       }
 
-      return { settled: true, action: 'refund', txHash, brokerAgreed: true };
+      // Broker passed but poster rejected → dispute
+      const reasonHash = hashData(body.reason);
+      await this.prisma.dispute.upsert({
+        where: { bountyId },
+        update: { reason: body.reason, reasonHash },
+        create: {
+          bountyId,
+          posterAddress: body.posterAddress,
+          reason: body.reason,
+          reasonHash,
+        },
+      });
+
+      this.logger.log(`Dispute opened for ${bountyId.slice(0, 14)}…: broker passed, poster rejected`);
+      return { settled: false, action: 'dispute-opened', disputeReason: body.reason };
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      this.logger.error(`Reject failed for ${bountyId}: ${msg}`);
+      return { error: `Rejection failed: ${msg}` };
     }
-
-    // Broker passed but poster rejected → dispute
-    const reasonHash = hashData(body.reason);
-    await this.prisma.dispute.create({
-      data: {
-        bountyId,
-        posterAddress: body.posterAddress,
-        reason: body.reason,
-        reasonHash,
-      },
-    });
-
-    this.logger.log(`Dispute opened for ${bountyId}: broker passed, poster rejected`);
-    return { settled: false, action: 'dispute-opened', disputeReason: body.reason };
   }
 
   @Post(':bountyId/dispute/resolve')
@@ -115,71 +174,71 @@ export class SettlementController {
     @Param('bountyId') bountyId: string,
     @Body() body: { decision: 'agent' | 'poster'; reasoning: string },
   ) {
-    const dispute = await this.prisma.dispute.findUnique({ where: { bountyId } });
-    if (!dispute) {
-      return { error: 'No dispute found for this bounty' };
-    }
+    try {
+      const dispute = await this.prisma.dispute.findUnique({ where: { bountyId } });
+      if (!dispute) return { error: 'No dispute found' };
 
-    const decisionHash = hashData(JSON.stringify({ bountyId, decision: body.decision, reasoning: body.reasoning }));
+      const ctx = await this.getBountyContext(bountyId);
+      const decisionHash = hashData(JSON.stringify({ bountyId, decision: body.decision, reasoning: body.reasoning }));
 
-    await this.prisma.dispute.update({
-      where: { bountyId },
-      data: {
-        resolvedAt: new Date(),
-        platformDecision: body.decision,
-        platformReasoning: body.reasoning,
-        platformDecisionHash: decisionHash,
-      },
-    });
-
-    const delivery = await this.prisma.delivery.findFirst({
-      where: { bountyId },
-      orderBy: { submittedAt: 'desc' },
-    });
-
-    let txHash: string | null = null;
-
-    if (body.decision === 'agent' && delivery) {
-      txHash = await this.settlementService.release(bountyId, delivery.agentAddress, 'platform-sided-agent');
-
-      await this.settlementService.recordBountyOutcome({
-        bountyId,
-        agentAddress: delivery.agentAddress,
-        posterAddress: dispute.posterAddress,
-        outcome: 'disputed-won',
-        brokerDecision: 'pass',
-        posterDecision: 'dispute',
-        platformDecision: 'agent',
-        amountUsdt: '0',
-        templateId: null,
-        deliverableKind: delivery.payloadKind,
-        verifierType: 'unknown',
-        posterRating: null,
-        posterComment: null,
+      await this.prisma.dispute.update({
+        where: { bountyId },
+        data: {
+          resolvedAt: new Date(),
+          platformDecision: body.decision,
+          platformReasoning: body.reasoning,
+          platformDecisionHash: decisionHash,
+        },
       });
-    } else if (body.decision === 'poster') {
-      txHash = await this.settlementService.refund(bountyId, 2, 'platform-sided-poster');
 
-      if (delivery) {
+      let txHash: string | null = null;
+
+      if (body.decision === 'agent' && ctx.delivery) {
+        txHash = await this.settlementService.release(bountyId, ctx.delivery.agentAddress, 'platform-sided-agent');
+
         await this.settlementService.recordBountyOutcome({
           bountyId,
-          agentAddress: delivery.agentAddress,
+          agentAddress: ctx.delivery.agentAddress,
           posterAddress: dispute.posterAddress,
-          outcome: 'disputed-lost',
-          brokerDecision: 'pass',
+          outcome: 'disputed-won',
+          brokerDecision: ctx.verifierResult?.passed ? 'pass' : 'fail',
           posterDecision: 'dispute',
-          platformDecision: 'poster',
-          amountUsdt: '0',
-          templateId: null,
-          deliverableKind: delivery.payloadKind,
-          verifierType: 'unknown',
+          platformDecision: 'agent',
+          amountUsdt: ctx.amountUsdt,
+          templateId: ctx.templateId,
+          deliverableKind: ctx.deliverableKind,
+          verifierType: ctx.verifierType,
           posterRating: null,
           posterComment: null,
         });
-      }
-    }
+      } else if (body.decision === 'poster') {
+        txHash = await this.settlementService.refund(bountyId, 2, 'platform-sided-poster');
 
-    this.logger.log(`Dispute resolved for ${bountyId}: ${body.decision}`);
-    return { resolved: true, decision: body.decision, txHash };
+        if (ctx.delivery) {
+          await this.settlementService.recordBountyOutcome({
+            bountyId,
+            agentAddress: ctx.delivery.agentAddress,
+            posterAddress: dispute.posterAddress,
+            outcome: 'disputed-lost',
+            brokerDecision: ctx.verifierResult?.passed ? 'pass' : 'fail',
+            posterDecision: 'dispute',
+            platformDecision: 'poster',
+            amountUsdt: ctx.amountUsdt,
+            templateId: ctx.templateId,
+            deliverableKind: ctx.deliverableKind,
+            verifierType: ctx.verifierType,
+            posterRating: null,
+            posterComment: null,
+          });
+        }
+      }
+
+      this.logger.log(`Dispute resolved for ${bountyId.slice(0, 14)}…: ${body.decision}`);
+      return { resolved: true, decision: body.decision, txHash };
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      this.logger.error(`Dispute resolve failed for ${bountyId}: ${msg}`);
+      return { error: `Dispute resolution failed: ${msg}` };
+    }
   }
 }

@@ -169,14 +169,21 @@ export default function PosterBountyDetail() {
                   onClick={() => approveMutation.mutate({ bountyId: id!, posterAddress: address, rating: 5 })}
                   disabled={approveMutation.isPending}
                 >
-                  {approveMutation.isPending ? "Approving..." : "Approve & pay"}
+                  {approveMutation.isPending ? "Approving..." : "Approve"}
                 </FlButton>
                 <FlButton
-                  variant="destructive"
+                  variant="secondary"
                   onClick={() => rejectMutation.mutate({ bountyId: id!, posterAddress: address, reason: "Quality below expectations" })}
                   disabled={rejectMutation.isPending}
                 >
                   {rejectMutation.isPending ? "Rejecting..." : "Reject"}
+                </FlButton>
+                <FlButton
+                  variant="destructive"
+                  onClick={() => rejectMutation.mutate({ bountyId: id!, posterAddress: address, reason: "Disputing delivery quality" })}
+                  disabled={rejectMutation.isPending}
+                >
+                  Dispute
                 </FlButton>
               </div>
             )}
