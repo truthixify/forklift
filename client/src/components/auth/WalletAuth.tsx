@@ -1,9 +1,10 @@
 import { createContext, ReactNode, useCallback, useContext, useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useAccount, useDisconnect, useSignMessage } from "wagmi";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { useQueryClient } from "@tanstack/react-query";
-import { fetchNonce, fetchSignIn } from "@/lib/api";
+import { fetchNonce, fetchSignIn, useMe } from "@/lib/api";
+import { OnboardingModal } from "./OnboardingModal";
 
 type Role = "poster" | "operator";
 
@@ -35,17 +36,30 @@ export function WalletAuthProvider({ children }: { children: ReactNode }) {
   const { openConnectModal } = useConnectModal();
   const qc = useQueryClient();
   const nav = useNavigate();
+  const location = useLocation();
 
   const [role, setRole] = useState<Role | null>(loadRole);
   const [authenticated, setAuthenticated] = useState(() => localStorage.getItem(AUTH_KEY) === "true");
+  const [showOnboarding, setShowOnboarding] = useState(false);
   const [pendingAuth, setPendingAuth] = useState<{ intendedRole: Role; onAuthed?: (addr: string) => void } | null>(null);
   const signingRef = useRef(false);
+
+  const { data: meData } = useMe();
+  const meUser = (meData as Record<string, unknown>)?.user as Record<string, unknown> | undefined;
 
   useEffect(() => {
     if (role) localStorage.setItem(ROLE_KEY, role);
     else localStorage.removeItem(ROLE_KEY);
   }, [role]);
 
+  // Auto-redirect: if on landing page and already authenticated with a saved role, go to dashboard
+  useEffect(() => {
+    if (isConnected && authenticated && role && location.pathname === "/") {
+      nav(`/dashboard/${role}`);
+    }
+  }, [isConnected, authenticated, role, location.pathname, nav]);
+
+  // After wallet connects with a pending auth, run sign-in flow
   useEffect(() => {
     if (!isConnected || !address || !pendingAuth || signingRef.current) return;
 
@@ -69,7 +83,7 @@ export function WalletAuthProvider({ children }: { children: ReactNode }) {
 
         const signature = await signMessageAsync({ account: address as `0x${string}`, message });
 
-        await fetchSignIn({ address, message, signature, nonceId });
+        const result = await fetchSignIn({ address, message, signature, nonceId }) as Record<string, unknown>;
 
         setAuthenticated(true);
         localStorage.setItem(AUTH_KEY, "true");
@@ -77,6 +91,14 @@ export function WalletAuthProvider({ children }: { children: ReactNode }) {
         qc.invalidateQueries({ queryKey: ["me"] });
 
         setPendingAuth(null);
+
+        // Check if first-time user (no displayName yet)
+        const user = result.user as Record<string, unknown> | undefined;
+        if (!user?.displayName && !user?.onboarded) {
+          setShowOnboarding(true);
+          return;
+        }
+
         if (pending.onAuthed) {
           pending.onAuthed(address);
         } else {
@@ -90,6 +112,13 @@ export function WalletAuthProvider({ children }: { children: ReactNode }) {
       }
     })();
   }, [isConnected, address, pendingAuth, signMessageAsync, nav, qc]);
+
+  // Also check on meData load if user needs onboarding
+  useEffect(() => {
+    if (authenticated && meUser && !meUser.onboarded && !meUser.displayName && !showOnboarding) {
+      setShowOnboarding(true);
+    }
+  }, [authenticated, meUser, showOnboarding]);
 
   const requireAuth = useCallback(
     (intendedRole: Role, onAuthed?: (addr: string) => void) => {
@@ -120,9 +149,18 @@ export function WalletAuthProvider({ children }: { children: ReactNode }) {
     nav("/");
   }, [disconnect, qc, nav]);
 
+  const handleOnboardingComplete = () => {
+    setShowOnboarding(false);
+    qc.invalidateQueries({ queryKey: ["me"] });
+    if (role) nav(`/dashboard/${role}`);
+  };
+
   return (
     <Ctx.Provider value={{ connected: isConnected, address, authenticated, role, requireAuth, signOut }}>
       {children}
+      {showOnboarding && address && (
+        <OnboardingModal address={address} onComplete={handleOnboardingComplete} />
+      )}
     </Ctx.Provider>
   );
 }

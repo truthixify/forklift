@@ -6,6 +6,7 @@ import { FlButton } from "@/components/manifest/FlButton";
 import { Monogram } from "@/components/manifest/Manifest";
 import { NotificationsBell } from "@/components/shell/NotificationsBell";
 import { useWalletAuth } from "@/components/auth/WalletAuth";
+import { useMe } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 type NavChild = { to: string; label: string; desc?: string; auth?: "poster" | "operator" };
@@ -64,7 +65,10 @@ export function TopNav() {
   const [openGroup, setOpenGroup] = useState<string | null>(null);
   const inApp = isInApp(pathname);
   const role = getRole(pathname);
-  const { connected, requireAuth } = useWalletAuth();
+  const { connected, address, requireAuth } = useWalletAuth();
+  const { data: meData } = useMe();
+  const meUser = (meData as Record<string, unknown>)?.user as Record<string, unknown> | undefined;
+  const profileMonogram = (meUser?.displayName as string)?.charAt(0)?.toUpperCase() ?? address?.charAt(2)?.toUpperCase() ?? "?";
   const showCobaltCTA = !pathname.startsWith("/post") && !inApp;
 
   const handleAuthLink = (to: string, intendedRole: "poster" | "operator") => {
@@ -169,7 +173,7 @@ export function TopNav() {
 
           {inApp && (
             <Link to={`/dashboard/${role}`} aria-label="Profile">
-              <Monogram letter={role === "operator" ? "B" : "C"} size={40} variant="paper" />
+              <Monogram letter={profileMonogram} size={40} variant="paper" />
             </Link>
           )}
 

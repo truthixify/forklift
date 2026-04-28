@@ -18,6 +18,7 @@ import {
 import { AppShell } from "./AppShell";
 import { Monogram, MonoLabel } from "@/components/manifest/Manifest";
 import { useWalletAuth } from "@/components/auth/WalletAuth";
+import { useMe } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 type Role = "poster" | "operator";
@@ -55,11 +56,14 @@ const STORAGE_KEY = "fl.dashSidebar.collapsed";
 export function DashboardLayout({ role, title, subtitle, children, headerAction }: Props) {
   const nav = role === "operator" ? OPERATOR_NAV : POSTER_NAV;
   const otherRole: Role = role === "operator" ? "poster" : "operator";
-  const monogram = role === "operator" ? "B" : "C";
-  const ident =
-    role === "operator" ? "BLOCK FOUNDRY · 0x91A2…77F4" : "CARA · 0xC4F9…8E21";
   const navigate = useNavigate();
-  const { signOut } = useWalletAuth();
+  const { signOut, address } = useWalletAuth();
+  const { data: meData } = useMe();
+  const user = (meData as Record<string, unknown>)?.user as Record<string, unknown> | undefined;
+  const displayName = (user?.displayName as string) ?? (user?.orgName as string) ?? "";
+  const shortAddr = address ? `${address.slice(0, 6)}…${address.slice(-4)}` : "—";
+  const monogram = displayName ? displayName.charAt(0).toUpperCase() : shortAddr.charAt(0).toUpperCase();
+  const ident = displayName ? `${displayName.toUpperCase()} · ${shortAddr}` : shortAddr;
   const handleSignOut = () => {
     signOut();
     navigate("/");
@@ -97,7 +101,7 @@ export function DashboardLayout({ role, title, subtitle, children, headerAction 
                 <div className="min-w-0 flex-1">
                   <MonoLabel ink className="block">{role.toUpperCase()} DESK</MonoLabel>
                   <div className="font-display font-medium text-[16px] truncate">
-                    {role === "operator" ? "Block Foundry" : "Cara"}
+                    {displayName || shortAddr}
                   </div>
                   <div className="mono-small text-muted-ink truncate">{ident}</div>
                 </div>

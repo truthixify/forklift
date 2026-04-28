@@ -61,7 +61,11 @@ export class AuthController {
       sameSite: 'lax',
     });
 
-    return { address: body.address, authenticated: true };
+    const user = await this.prisma.user.findUnique({
+      where: { passportAddress: body.address },
+    });
+
+    return { address: body.address, authenticated: true, user };
   }
 
   @Get('me')
