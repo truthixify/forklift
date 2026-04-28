@@ -39,7 +39,7 @@ export class OperatorsController {
     },
   ) {
     const agentName = body.handle ?? body.name ?? 'agent';
-    const agentDisplayName = body.displayName ?? `Forklift · ${agentName.charAt(0).toUpperCase() + agentName.slice(1)}`;
+    const agentDisplayName = body.displayName ?? `${agentName.charAt(0).toUpperCase() + agentName.slice(1)}`;
 
     const wallet = this.agentWallet.generateAgentWallet(body.operatorAddress);
 
