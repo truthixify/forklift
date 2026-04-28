@@ -107,13 +107,18 @@ export function WalletAuthProvider({ children }: { children: ReactNode }) {
   );
 
   const signOut = useCallback(() => {
+    fetch(`${import.meta.env.VITE_API_URL ?? 'https://forklift-7cb2.onrender.com/api'}/auth/logout`, {
+      method: 'POST',
+      credentials: 'include',
+    }).catch(() => {});
     disconnect();
     setRole(null);
     setAuthenticated(false);
     localStorage.removeItem(ROLE_KEY);
     localStorage.removeItem(AUTH_KEY);
     qc.invalidateQueries({ queryKey: ["me"] });
-  }, [disconnect, qc]);
+    nav("/");
+  }, [disconnect, qc, nav]);
 
   return (
     <Ctx.Provider value={{ connected: isConnected, address, authenticated, role, requireAuth, signOut }}>
