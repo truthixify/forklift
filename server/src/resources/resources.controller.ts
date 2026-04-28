@@ -5,6 +5,7 @@ import { ApiTags } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
 import type { Request, Response } from 'express';
 
+import { PrismaService } from '@forklift/database';
 import { RESOURCE_CATALOG } from './resource-catalog';
 import { SEEDED_LEADS } from './seed/leads';
 import { SEEDED_RESEARCH } from './seed/research';
@@ -20,7 +21,10 @@ export class ResourcesController {
   private readonly logger = new Logger(ResourcesController.name);
   private readonly payTo: string;
 
-  constructor(private readonly config: ConfigService) {
+  constructor(
+    private readonly config: ConfigService,
+    private readonly prisma: PrismaService,
+  ) {
     this.payTo =
       this.config.get<string>('PLATFORM_TREASURY_ADDRESS') ??
       '0x33b69cA4EA27Ad2f83AB73cd6bBf635Cf25E5812';
@@ -29,6 +33,37 @@ export class ResourcesController {
   @Get('catalog')
   getCatalog() {
     return { catalog: RESOURCE_CATALOG };
+  }
+
+  @Get('stats')
+  async getStats() {
+    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+    const payments = await this.prisma.x402Payment.findMany({
+      where: { paidAt: { gte: oneDayAgo } },
+    });
+
+    const totalCalls = payments.length;
+    const totalUsdtWei = payments.reduce(
+      (sum, p) => sum + BigInt(p.amountUsdt.toString()),
+      0n,
+    );
+    const totalUsdt = Number(totalUsdtWei) / 1e18;
+
+    const perEndpoint: Record<string, { calls: number; usdt: number }> = {};
+    for (const p of payments) {
+      const key = p.resourceUrl;
+      if (!perEndpoint[key]) perEndpoint[key] = { calls: 0, usdt: 0 };
+      perEndpoint[key].calls++;
+      perEndpoint[key].usdt += Number(BigInt(p.amountUsdt.toString())) / 1e18;
+    }
+
+    return {
+      period: '24h',
+      totalCalls,
+      totalUsdt: Math.round(totalUsdt * 100) / 100,
+      endpoints: perEndpoint,
+    };
   }
 
   @Post('inference')

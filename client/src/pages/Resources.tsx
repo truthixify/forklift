@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { AppShell } from "@/components/shell/AppShell";
 import { ManifestCard, IdTab, MonoLabel, Tag, Brackets, PulseDot, StatusBand } from "@/components/manifest/Manifest";
 import { FlButton } from "@/components/manifest/FlButton";
-import { useResourceCatalog } from "@/lib/api";
+import { useResourceCatalog, useResourceStats } from "@/lib/api";
 
 interface ResourceItem {
   path: string;
@@ -22,17 +22,18 @@ function toResource(raw: Record<string, unknown>): ResourceItem {
   };
 }
 
-function EndpointTraffic() {
+function EndpointTraffic({ calls }: { calls: number }) {
   return (
     <div className="flex items-center gap-2">
-      <PulseDot state="live" />
-      <span className="mono-small tabular-nums">ACTIVE</span>
+      <PulseDot state={calls > 0 ? "live" : "ink"} />
+      <span className="mono-small tabular-nums">{calls > 0 ? ` CALLS / 24H` : "0 CALLS"}</span>
     </div>
   );
 }
 
 export default function Resources() {
   const { data, isLoading, isError } = useResourceCatalog();
+  const { data: statsData } = useResourceStats();
 
   const resources: ResourceItem[] = useMemo(() => {
     const raw = data as Record<string, unknown> | undefined;
@@ -43,8 +44,9 @@ export default function Resources() {
     return items.map((r) => toResource(r as Record<string, unknown>));
   }, [data]);
 
-  const totalCalls = resources.length > 0 ? resources.length * 100 : 0;
-  const totalUsdt = resources.length > 0 ? resources.length * 25 : 0;
+  const stats = statsData as { totalCalls?: number; totalUsdt?: number; endpoints?: Record<string, { calls: number; usdt: number }> } | undefined;
+  const totalCalls = stats?.totalCalls ?? 0;
+  const totalUsdt = stats?.totalUsdt ?? 0;
 
   return (
     <AppShell>
@@ -107,7 +109,7 @@ export default function Resources() {
                 <p className="mt-3 text-[15px] leading-[1.55] max-w-[56ch]">{r.desc}</p>
                 <div className="mt-4 flex gap-2 items-center flex-wrap">
                   <Tag>x402</Tag><Tag>JSON</Tag><Tag>PAY-PER-CALL</Tag>
-                  <EndpointTraffic />
+                  <EndpointTraffic calls={stats?.endpoints?.[r.path]?.calls ?? 0} />
                 </div>
               </div>
               <div className="col-span-12 md:col-span-5 md:text-right">

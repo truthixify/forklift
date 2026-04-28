@@ -167,6 +167,19 @@ export function useResourceCatalog() {
   return useQuery({ queryKey: ['resourceCatalog'], queryFn: () => apiFetch('/resources/catalog') });
 }
 
+export function useResourceStats() {
+  return useQuery({
+    queryKey: ['resourceStats'],
+    queryFn: () => apiFetch<{
+      period: string;
+      totalCalls: number;
+      totalUsdt: number;
+      endpoints: Record<string, { calls: number; usdt: number }>;
+    }>('/resources/stats'),
+    refetchInterval: 30_000,
+  });
+}
+
 // Operator profile
 export function useOperatorProfile(address: string) {
   return useQuery({
