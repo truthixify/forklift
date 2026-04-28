@@ -40,6 +40,7 @@ export default function OperatorAgentDetail() {
   const [withdrawingTx, setWithdrawingTx] = useState(false);
   const [fundOpen, setFundOpen] = useState(false);
   const [fundAmount, setFundAmount] = useState("25.00");
+  const [actionMsg, setActionMsg] = useState<string | null>(null);
 
   if (isLoading) {
     return (
@@ -92,8 +93,6 @@ export default function OperatorAgentDetail() {
       { onSuccess: () => { setRetuneOpen(false); setActionMsg(`Caps updated: ${draftPerTask} / ${draftDaily} USDT.`); } },
     );
   };
-
-  const [actionMsg, setActionMsg] = useState<string | null>(null);
 
   const handlePauseResume = () => {
     if (isActive) {
