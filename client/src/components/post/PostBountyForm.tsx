@@ -89,10 +89,13 @@ export function PostBountyForm({ dashboardHref = "/dashboard/poster" }: Props) {
       { brief, templateHint: template ?? undefined },
       {
         onSuccess: (data) => {
-          const result = data as DraftResult;
+          const raw = data as Record<string, unknown>; const result = (raw.draft ?? raw) as DraftResult;
           setDraft(result);
-          if (result.amount || result.suggestedAmount) {
-            setAmount(String(result.amount ?? result.suggestedAmount ?? 25));
+          const rawAmt = result.amount ?? result.suggestedAmount;
+          if (rawAmt) {
+            const num = Number(rawAmt);
+            const usdt = num > 1e15 ? num / 1e18 : num;
+            setAmount(String(Math.round(usdt * 100) / 100));
           }
           setStage(1.5);
         },
@@ -105,21 +108,20 @@ export function PostBountyForm({ dashboardHref = "/dashboard/poster" }: Props) {
   }
 
   function handleConfirmAndPost() {
-    const draftId = draft?.id ?? draft?.bountyId;
     confirmBounty.mutate(
       {
-        draftId,
         brief,
-        title: draft?.title,
+        title: draft?.title ?? brief.slice(0, 200),
+        description: brief,
         template: draft?.template ?? draft?.templateId ?? template,
         amount: parseFloat(amount || "0"),
         posterAddress: address,
       },
       {
         onSuccess: (data) => {
-          const result = data as { id?: string; bountyId?: string; shortId?: string };
-          setConfirmedId(result.id ?? result.bountyId ?? draftId ?? "");
-          setConfirmedShortId(result.shortId ?? draft?.shortId ?? "");
+          const result = data as { bountyId?: string; shortId?: string };
+          setConfirmedId(result.bountyId ?? "");
+          setConfirmedShortId(result.shortId ?? "");
           setStage(3);
         },
         onError: () => {

@@ -42,36 +42,42 @@ export class BountiesController {
   async confirmBounty(
     @Body()
     body: {
-      bountyId: string;
       brief: string;
-      title: string;
-      description: string;
-      deliverableSchema: Record<string, unknown>;
-      verifierConfig: Record<string, unknown>;
-      templateId?: string;
-      parsedByProvider?: string;
-      parsedByModel?: string;
+      title?: string;
+      description?: string;
+      template?: string;
+      amount?: number;
+      posterAddress?: string;
+      deliverableSchema?: Record<string, unknown>;
+      verifierConfig?: Record<string, unknown>;
     },
   ) {
-    const hash = hashData(JSON.stringify(body));
+    const bountyId = hashData(`bounty-${Date.now()}-${body.posterAddress ?? 'anon'}-${Math.random()}`);
+    const title = body.title ?? body.brief.slice(0, 200);
+    const description = body.description ?? body.brief;
+    const shortNum = bountyId.slice(-4).toUpperCase();
 
     const signature = await this.prisma.bountySignature.create({
       data: {
-        hash,
-        bountyId: body.bountyId,
-        title: body.title,
-        description: body.description,
+        hash: hashData(JSON.stringify(body)),
+        bountyId,
+        title,
+        description,
         brief: body.brief,
-        deliverableSchema: body.deliverableSchema as Prisma.InputJsonValue,
-        verifierConfig: body.verifierConfig as Prisma.InputJsonValue,
-        templateId: body.templateId,
-        parsedByProvider: body.parsedByProvider,
-        parsedByModel: body.parsedByModel,
+        deliverableSchema: (body.deliverableSchema ?? {}) as Prisma.InputJsonValue,
+        verifierConfig: (body.verifierConfig ?? {}) as Prisma.InputJsonValue,
+        templateId: body.template,
       },
     });
 
-    this.logger.log(`Bounty signature stored: ${hash}`);
-    return { hash: signature.hash, bountyId: body.bountyId };
+    this.logger.log(`Bounty confirmed: ${bountyId} (${title})`);
+    return {
+      bountyId,
+      hash: signature.hash,
+      shortId: `FL-${shortNum}`,
+      title,
+      amount: body.amount ?? 0,
+    };
   }
 
   @Get()
