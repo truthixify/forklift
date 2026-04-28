@@ -6,3 +6,19 @@ export const KITE_CHAIN_ID = 2368;
 export const KITE_RPC = 'https://rpc-testnet.gokite.ai/';
 export const BOUNTY_ESCROW_ADDRESS = '0x09474e4716261D4907569d2e325ae59553e4Ea45';
 export const KITE_USDT_ADDRESS = '0x0fF5393387ad2f9f691FD6Fd28e07E3969e27e63';
+
+export const BOUNTY_ESCROW_ABI = [
+  {
+    type: 'function',
+    name: 'createBounty',
+    inputs: [
+      { name: 'bountyId', type: 'bytes32' },
+      { name: 'amount', type: 'uint256' },
+      { name: 'deliveryDeadline', type: 'uint64' },
+      { name: 'deliverableSchemaHash', type: 'bytes32' },
+      { name: 'verifierConfigHash', type: 'bytes32' },
+    ],
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+] as const;

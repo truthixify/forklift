@@ -1,10 +1,14 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { parseUnits, erc20Abi } from "viem";
+import { useWriteContract } from "wagmi";
 import { ManifestCard, IdTab, StatusBand, Brackets, MonoLabel, Tag, PulseDot } from "@/components/manifest/Manifest";
 import { FlButton } from "@/components/manifest/FlButton";
 import { FlTextarea, FlInput } from "@/components/manifest/FlInput";
 import { useCreateDraft, useConfirmBounty, useTemplates } from "@/lib/api";
 import { useWalletAuth } from "@/components/auth/WalletAuth";
+import { BOUNTY_ESCROW_ADDRESS, KITE_USDT_ADDRESS, BOUNTY_ESCROW_ABI } from "@/lib/config";
+import { kiteTestnet } from "@/lib/wagmi";
 
 const SAMPLE_BRIEF = "Design a minimalist logo for my Shopify store, plant-based skincare brand 'Quiet Botanic'. Vector format, transparent SVG plus PNG at 1024×1024. No mascots, no script fonts. Should read at favicon size.";
 
@@ -52,6 +56,7 @@ export function PostBountyForm({ dashboardHref = "/dashboard/poster" }: Props) {
   const [traceLine, setTraceLine] = useState(0);
   const [draft, setDraft] = useState<DraftResult | null>(null);
   const [confirmedId, setConfirmedId] = useState<string | null>(null);
+  const [txStep, setTxStep] = useState<string | null>(null);
   const [confirmedShortId, setConfirmedShortId] = useState<string | null>(null);
   const nav = useNavigate();
   const { address } = useWalletAuth();
@@ -59,6 +64,7 @@ export function PostBountyForm({ dashboardHref = "/dashboard/poster" }: Props) {
   const { data: templatesData } = useTemplates();
   const createDraft = useCreateDraft();
   const confirmBounty = useConfirmBounty();
+  const { writeContractAsync } = useWriteContract();
 
   const templates = Array.isArray((templatesData as { templates?: unknown[] })?.templates)
     ? ((templatesData as { templates: Array<{ id: string; name: string }> }).templates)
@@ -107,28 +113,69 @@ export function PostBountyForm({ dashboardHref = "/dashboard/poster" }: Props) {
     );
   }
 
-  function handleConfirmAndPost() {
-    confirmBounty.mutate(
-      {
-        brief,
-        title: draft?.title ?? brief.slice(0, 200),
-        description: brief,
-        template: draft?.template ?? draft?.templateId ?? template,
-        amount: parseFloat(amount || "0"),
-        posterAddress: address,
-      },
-      {
-        onSuccess: (data) => {
-          const result = data as { bountyId?: string; shortId?: string };
-          setConfirmedId(result.bountyId ?? "");
-          setConfirmedShortId(result.shortId ?? "");
-          setStage(3);
-        },
-        onError: () => {
-          setStage(3);
-        },
-      },
-    );
+  async function handleConfirmAndPost() {
+    if (!address) return;
+
+    const amountUsdt = parseFloat(amount || "0");
+    const amountWei = parseUnits(String(amountUsdt), 18);
+    const feeWei = (amountWei * 500n) / 10000n;
+    const totalWei = amountWei + feeWei;
+    const deadline = BigInt(Math.floor(Date.now() / 1000) + 7200);
+
+    try {
+      // Step 1: Store bounty on server first to get bountyId
+      setTxStep("STORING BOUNTY...");
+      const serverResult = await new Promise<{ bountyId?: string; shortId?: string; hash?: string }>((resolve, reject) => {
+        confirmBounty.mutate(
+          {
+            brief,
+            title: draft?.title ?? brief.slice(0, 200),
+            description: brief,
+            template: draft?.template ?? draft?.templateId ?? template,
+            amount: amountUsdt,
+            posterAddress: address,
+          },
+          {
+            onSuccess: (data) => resolve(data as { bountyId?: string; shortId?: string; hash?: string }),
+            onError: reject,
+          },
+        );
+      });
+
+      const bountyId = (serverResult.bountyId ?? serverResult.hash ?? "0x0") as `0x${string}`;
+      const schemaHash = (serverResult.hash ?? "0x0000000000000000000000000000000000000000000000000000000000000000") as `0x${string}`;
+
+      // Step 2: Approve USDT spend
+      setTxStep("APPROVE USDT...");
+      await writeContractAsync({
+        address: KITE_USDT_ADDRESS as `0x${string}`,
+        abi: erc20Abi,
+        account: address as `0x${string}`,
+        chain: kiteTestnet,
+        functionName: 'approve',
+        args: [BOUNTY_ESCROW_ADDRESS as `0x${string}`, totalWei],
+      });
+
+      // Step 3: Create bounty on-chain
+      setTxStep("CREATING BOUNTY ON-CHAIN...");
+      await writeContractAsync({
+        address: BOUNTY_ESCROW_ADDRESS as `0x${string}`,
+        abi: BOUNTY_ESCROW_ABI,
+        account: address as `0x${string}`,
+        chain: kiteTestnet,
+        functionName: 'createBounty',
+        args: [bountyId, amountWei, deadline, schemaHash, schemaHash],
+      });
+
+      setTxStep(null);
+      setConfirmedId(serverResult.bountyId ?? "");
+      setConfirmedShortId(serverResult.shortId ?? "");
+      setStage(3);
+    } catch (err) {
+      console.error("Bounty creation failed:", err);
+      setTxStep(null);
+      setStage(3);
+    }
   }
 
   const draftTitle = draft?.title ?? "Parsed bounty";
@@ -266,15 +313,21 @@ export function PostBountyForm({ dashboardHref = "/dashboard/poster" }: Props) {
                 </div>
               </div>
             </ManifestCard>
+            {txStep && (
+              <div className="border-2 border-cobalt p-4 flex items-center gap-3">
+                <PulseDot state="live" />
+                <MonoLabel ink>{txStep}</MonoLabel>
+              </div>
+            )}
             <div className="flex justify-between gap-3">
-              <FlButton variant="secondary" onClick={() => setStage(1)}>← Back</FlButton>
+              <FlButton variant="secondary" onClick={() => setStage(1)} disabled={!!txStep}>← Back</FlButton>
               <FlButton
                 variant="cobalt"
                 size="lg"
                 onClick={handleConfirmAndPost}
-                disabled={confirmBounty.isPending}
+                disabled={!!txStep || confirmBounty.isPending}
               >
-                {confirmBounty.isPending ? "Posting..." : "Confirm & post →"}
+                {txStep ?? "Confirm & post →"}
               </FlButton>
             </div>
           </div>
