@@ -29,17 +29,29 @@ function toBounty(raw: Record<string, unknown>): Bounty {
 }
 
 const FILTERS = [
-  { id: "all", label: "ALL OPEN", states: ["live", "assigned", "delivered"] },
-  { id: "live", label: "LIVE · UNCLAIMED", states: ["live"] },
+  { id: "all", label: "ALL", states: null },
+  { id: "open", label: "OPEN", states: ["live", "assigned", "delivered"] },
+  { id: "live", label: "LIVE", states: ["live"] },
   { id: "assigned", label: "IN PROGRESS", states: ["assigned"] },
-  { id: "delivered", label: "AWAITING REVIEW", states: ["delivered"] },
+  { id: "delivered", label: "REVIEW", states: ["delivered"] },
+  { id: "settled", label: "SETTLED", states: ["paid", "refunded"] },
+  { id: "disputed", label: "DISPUTED", states: ["disputed"] },
 ] as const;
+
+type SortKey = "newest" | "oldest" | "highest" | "lowest";
+const SORTS: { id: SortKey; label: string }[] = [
+  { id: "newest", label: "NEWEST" },
+  { id: "oldest", label: "OLDEST" },
+  { id: "highest", label: "HIGHEST PAY" },
+  { id: "lowest", label: "LOWEST PAY" },
+];
 
 export default function PosterBounties() {
   const { address } = useWalletAuth();
   const { data: bountyData, isLoading } = useBounties();
   const { data: posterData } = usePoster(address ?? "");
-  const [active, setActive] = useState<typeof FILTERS[number]["id"]>("all");
+  const [active, setActive] = useState<string>("all");
+  const [sort, setSort] = useState<SortKey>("newest");
 
   const myBounties: Bounty[] = useMemo(() => {
     const raw = (bountyData as { bounties?: unknown[] })?.bounties;
@@ -55,13 +67,29 @@ export default function PosterBounties() {
   }, [bountyData, address, posterData]);
 
   const filter = FILTERS.find((f) => f.id === active)!;
-  const list = myBounties.filter((b) => filter.states.includes(b.state as never));
+  const filtered = filter.states
+    ? myBounties.filter((b) => (filter.states as readonly string[]).includes(b.state))
+    : myBounties;
+
+  const list = useMemo(() => {
+    const sorted = [...filtered];
+    switch (sort) {
+      case "newest": sorted.sort((a, b) => (b.createdAgo < a.createdAgo ? -1 : 1)); break;
+      case "oldest": sorted.sort((a, b) => (a.createdAgo < b.createdAgo ? -1 : 1)); break;
+      case "highest": sorted.sort((a, b) => b.amount - a.amount); break;
+      case "lowest": sorted.sort((a, b) => a.amount - b.amount); break;
+    }
+    return sorted;
+  }, [filtered, sort]);
+
+  const count = (states: readonly string[] | null) =>
+    states ? myBounties.filter((b) => states.includes(b.state)).length : myBounties.length;
 
   return (
     <DashboardLayout
       role="poster"
       title="My bounties."
-      subtitle="Everything you've posted that's still open. Filter by stage, jump to detail to review or extend."
+      subtitle="Everything you've posted. Filter by stage, sort by date or amount."
       headerAction={
         <Link to="/dashboard/poster/post"><FlButton variant="cobalt">+ Post a bounty</FlButton></Link>
       }
@@ -72,19 +100,17 @@ export default function PosterBounties() {
         </div>
       ) : (
       <>
-      {/* Stage counters */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="flex flex-wrap gap-2">
         {FILTERS.map((f) => {
-          const n = myBounties.filter((b) => f.states.includes(b.state as never)).length;
+          const n = count(f.states);
           const isActive = active === f.id;
           return (
             <button
               key={f.id}
               onClick={() => setActive(f.id)}
-              className={`text-left border-2 ${isActive ? "border-cobalt bg-paper" : "border-ink bg-paper hover:bg-hairline/30"} p-4`}
+              className={`border-2 px-4 h-9 mono-small inline-flex items-center gap-2 ${isActive ? "border-ink bg-ink text-paper" : "border-ink bg-paper hover:bg-hairline/30"}`}
             >
-              <MonoLabel ink className="block">{f.label}</MonoLabel>
-              <div className="font-display font-medium text-[28px] mt-1 tabular-nums">{n}</div>
+              {f.label} · {n}
             </button>
           );
         })}
@@ -92,8 +118,15 @@ export default function PosterBounties() {
 
       <div className="flex items-center justify-between">
         <div className="flex gap-2 flex-wrap">
-          <Tag>SORT · NEWEST</Tag>
-          <Tag variant="cobalt">FILTER · {filter.label}</Tag>
+          {SORTS.map((s) => (
+            <button
+              key={s.id}
+              onClick={() => setSort(s.id)}
+              className={`border px-3 h-7 mono-small inline-flex items-center ${sort === s.id ? "border-cobalt bg-cobalt text-paper" : "border-ink/40 hover:bg-hairline"}`}
+            >
+              {s.label}
+            </button>
+          ))}
         </div>
         <div className="mono-small text-muted-ink">{list.length} BOUNTIES</div>
       </div>
