@@ -291,10 +291,13 @@ export class WorkerEventHandler implements OnModuleInit {
 
     const title = signature?.title ?? 'Unknown bounty';
     const description = signature?.description ?? '';
-    const templateId = signature?.templateId ?? null;
+    // Resolve template: stored ID first, then match from brief
+    const storedTemplateId = signature?.templateId ?? null;
+    const templateDef = storedTemplateId
+      ? this.templates.get(storedTemplateId)
+      : this.templates.bestMatch(`${title} ${description}`);
+    const templateId = templateDef?.id ?? storedTemplateId;
 
-    // Use template's known kind over LLM-parsed kind — the parser is unreliable
-    const templateDef = templateId ? this.templates.get(templateId) : undefined;
     const deliverableKind = templateDef?.defaultDeliverable.payload.kind
       ?? this.extractDeliverableKind(signature?.deliverableSchema);
 

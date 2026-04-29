@@ -152,10 +152,12 @@ export function PostBountyForm({ dashboardHref = "/dashboard/poster" }: Props) {
           {
             brief,
             title: draft?.title ?? brief.slice(0, 200),
-            description: brief,
-            template: draft?.template ?? draft?.templateId ?? template,
+            description: draft?.description ?? brief,
+            template: draft?.matchedTemplate ?? draft?.template ?? draft?.templateId ?? template,
             amount: amountUsdt,
             posterAddress: address,
+            deliverableSchema: draft?.deliverableSchema,
+            verifierConfig: draft?.verifierConfig,
           },
           {
             onSuccess: (data) => resolve(data as { bountyId?: string; shortId?: string; hash?: string }),
