@@ -59,38 +59,34 @@ export async function handleFileWork(ctx: BountyWorkContext, llm: LLMClient): Pr
     const type = ctx.templateId === 'logo-design' ? 'logo' : ctx.templateId === 'social-graphic' ? 'social media graphic' : 'infographic';
     logger.log(`Generating ${type} SVG for: ${ctx.title.slice(0, 60)}`);
 
-    try {
-      const result = await llm.generateStructured({
-        prompt: buildDesignPrompt(ctx, type),
-        schema: DesignSchema,
-        timeout: 120_000,
-      });
+    const result = await llm.generateStructured({
+      prompt: buildDesignPrompt(ctx, type),
+      schema: DesignSchema,
+      timeout: 120_000,
+    });
 
-      let svg = result.svgCode;
-      if (!svg.startsWith('<svg')) {
-        const match = svg.match(/<svg[\s\S]*<\/svg>/);
-        if (match) svg = match[0];
-      }
-
-      const svgBuffer = Buffer.from(svg, 'utf-8');
-      const fileName = `${(ctx.templateId ?? 'design').replace(/[^a-z0-9-]/g, '-')}-${ctx.bountyId.slice(2, 10)}.svg`;
-
-      return {
-        payloadKind: 'file',
-        payload: {
-          designNotes: result.designNotes,
-          colorPalette: result.colorPalette,
-          conceptDescription: result.conceptDescription,
-          generatedBy: `${llm.provider}/${llm.model}`,
-          templateId: ctx.templateId,
-        },
-        fileBuffer: svgBuffer,
-        fileName,
-        mimeType: 'image/svg+xml',
-      };
-    } catch (error) {
-      logger.warn(`SVG generation failed, falling back to text`, error instanceof Error ? error.message : '');
+    let svg = result.svgCode;
+    if (!svg.startsWith('<svg')) {
+      const match = svg.match(/<svg[\s\S]*<\/svg>/);
+      if (match) svg = match[0];
     }
+
+    const svgBuffer = Buffer.from(svg, 'utf-8');
+    const fileName = `${(ctx.templateId ?? 'design').replace(/[^a-z0-9-]/g, '-')}-${ctx.bountyId.slice(2, 10)}.svg`;
+
+    return {
+      payloadKind: 'file',
+      payload: {
+        designNotes: result.designNotes,
+        colorPalette: result.colorPalette,
+        conceptDescription: result.conceptDescription,
+        generatedBy: `${llm.provider}/${llm.model}`,
+        templateId: ctx.templateId,
+      },
+      fileBuffer: svgBuffer,
+      fileName,
+      mimeType: 'image/svg+xml',
+    };
   }
 
   if (isVoiceOver) {
@@ -102,38 +98,22 @@ export async function handleFileWork(ctx: BountyWorkContext, llm: LLMClient): Pr
       directions: z.array(z.string()),
     });
 
-    try {
-      const result = await llm.generateStructured({
-        prompt: buildVoiceOverPrompt(ctx),
-        schema: VoiceOverSchema,
-        timeout: 120_000,
-      });
+    const result = await llm.generateStructured({
+      prompt: buildVoiceOverPrompt(ctx),
+      schema: VoiceOverSchema,
+      timeout: 120_000,
+    });
 
-      const scriptBuffer = Buffer.from(result.script, 'utf-8');
-      return {
-        payloadKind: 'file',
-        payload: { ...result, generatedBy: `${llm.provider}/${llm.model}`, templateId: ctx.templateId },
-        fileBuffer: scriptBuffer,
-        fileName: `voice-over-${ctx.bountyId.slice(2, 10)}.txt`,
-        mimeType: 'text/plain',
-      };
-    } catch (error) {
-      logger.warn(`Voice-over generation failed`, error instanceof Error ? error.message : '');
-    }
+    const scriptBuffer = Buffer.from(result.script, 'utf-8');
+    return {
+      payloadKind: 'file',
+      payload: { ...result, generatedBy: `${llm.provider}/${llm.model}`, templateId: ctx.templateId },
+      fileBuffer: scriptBuffer,
+      fileName: `voice-over-${ctx.bountyId.slice(2, 10)}.txt`,
+      mimeType: 'text/plain',
+    };
   }
 
-  // Generic file: generate content as text
-  logger.log(`Generating generic file delivery for: ${ctx.title.slice(0, 60)}`);
-  const content = await llm.generateText({
-    prompt: `You are an expert AI agent. Generate a high-quality deliverable for this bounty.\n\nBOUNTY: ${ctx.title}\nBRIEF: ${ctx.description}\n\nProduce the complete deliverable content.`,
-    timeout: 120_000,
-  });
-
-  return {
-    payloadKind: 'file',
-    payload: { data: content, generatedBy: `${llm.provider}/${llm.model}`, templateId: ctx.templateId },
-    fileBuffer: Buffer.from(content, 'utf-8'),
-    fileName: `delivery-${ctx.bountyId.slice(2, 10)}.txt`,
-    mimeType: 'text/plain',
-  };
+  // Unknown file template — fail, agent shouldn't have claimed this
+  throw new Error(`No file handler for template "${ctx.templateId ?? 'unknown'}"`);
 }

@@ -195,24 +195,9 @@ export async function handleJsonWork(ctx: BountyWorkContext, llm: LLMClient): Pr
   const templatePrompt = ctx.templateId ? TEMPLATE_PROMPTS[ctx.templateId] : undefined;
   const { prompt, schema } = templatePrompt ? templatePrompt(ctx) : buildGenericJsonPrompt(ctx);
 
-  try {
-    const result = await llm.generateStructured({ prompt, schema, timeout: 120_000 });
-    return {
-      payloadKind: 'json',
-      payload: { ...result, generatedBy: `${llm.provider}/${llm.model}`, templateId: ctx.templateId },
-    };
-  } catch (error) {
-    logger.warn(`Structured generation failed, falling back to text`, error instanceof Error ? error.message : '');
-    const text = await llm.generateText({ prompt, timeout: 120_000 });
-
-    let parsed: Record<string, unknown> = { rawText: text };
-    try {
-      parsed = JSON.parse(text) as Record<string, unknown>;
-    } catch { /* use rawText fallback */ }
-
-    return {
-      payloadKind: 'json',
-      payload: { ...parsed, generatedBy: `${llm.provider}/${llm.model}`, templateId: ctx.templateId },
-    };
-  }
+  const result = await llm.generateStructured({ prompt, schema, timeout: 120_000 });
+  return {
+    payloadKind: 'json',
+    payload: { ...result, generatedBy: `${llm.provider}/${llm.model}`, templateId: ctx.templateId },
+  };
 }
