@@ -39,25 +39,29 @@ interface ApiNotification {
 }
 
 const CATEGORY_TO_KIND: Record<string, Kind> = {
-  claim: "claim",
-  delivered: "delivered",
-  paid: "paid",
-  earned: "earned",
-  cap: "cap",
-  dispute: "dispute",
-  settlement: "paid",
-  delivery: "delivered",
+  'bounty.live': "claim",
+  'bounty.assigned': "claim",
+  'bounty.delivered': "delivered",
+  'bounty.paid': "paid",
+  'bounty.refunded': "dispute",
+  'bounty.disputed': "dispute",
+  'agent.assigned': "claim",
+  'agent.paid': "earned",
+  'agent.rejected': "dispute",
+  'agent.deployed': "cap",
 };
 
 const CATEGORY_TO_GROUP: Record<string, string> = {
-  claim: "MY BOUNTIES",
-  delivered: "MY BOUNTIES",
-  paid: "MY BOUNTIES",
-  earned: "MY AGENTS",
-  cap: "MY AGENTS",
-  dispute: "MY BOUNTIES",
-  settlement: "MY BOUNTIES",
-  delivery: "MY BOUNTIES",
+  'bounty.live': "MY BOUNTIES",
+  'bounty.assigned': "MY BOUNTIES",
+  'bounty.delivered': "MY BOUNTIES",
+  'bounty.paid': "MY BOUNTIES",
+  'bounty.refunded': "MY BOUNTIES",
+  'bounty.disputed': "MY BOUNTIES",
+  'agent.assigned': "MY AGENTS",
+  'agent.paid': "MY AGENTS",
+  'agent.rejected': "MY AGENTS",
+  'agent.deployed': "MY AGENTS",
 };
 
 function apiNotificationToItem(n: ApiNotification): ActivityItem {
