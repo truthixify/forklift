@@ -96,6 +96,26 @@ export class DeliveriesController {
     return { deliveryHash: hash, verifierResult: null };
   }
 
+  @Get(':bountyId/download')
+  async downloadFile(@Param('bountyId') bountyId: string, @Res() res: Response) {
+    const delivery = await this.deliveryService.getDelivery(bountyId);
+    if (!delivery) throw new NotFoundException('No delivery found');
+
+    const payload = delivery.payload as Record<string, unknown>;
+    const storageKey = payload['storageKey'] as string | undefined;
+    if (!storageKey) throw new NotFoundException('No file attached to this delivery');
+
+    const { body, contentType } = await this.blobStorage.getObject(storageKey);
+    const fileName = (payload['fileName'] as string) ?? 'delivery';
+
+    res.set({
+      'Content-Type': contentType,
+      'Content-Disposition': `inline; filename="${fileName}"`,
+      'Content-Length': String(body.length),
+    });
+    res.send(body);
+  }
+
   @Get(':bountyId')
   async getDelivery(@Param('bountyId') bountyId: string) {
     const delivery = await this.deliveryService.getDelivery(bountyId);
@@ -115,25 +135,5 @@ export class DeliveriesController {
     });
 
     return { delivery, signedUrl, verifierResult };
-  }
-
-  @Get(':bountyId/download')
-  async downloadFile(@Param('bountyId') bountyId: string, @Res() res: Response) {
-    const delivery = await this.deliveryService.getDelivery(bountyId);
-    if (!delivery) throw new NotFoundException('No delivery found');
-
-    const payload = delivery.payload as Record<string, unknown>;
-    const storageKey = payload['storageKey'] as string | undefined;
-    if (!storageKey) throw new NotFoundException('No file attached to this delivery');
-
-    const { body, contentType } = await this.blobStorage.getObject(storageKey);
-    const fileName = (payload['fileName'] as string) ?? 'delivery';
-
-    res.set({
-      'Content-Type': contentType,
-      'Content-Disposition': `attachment; filename="${fileName}"`,
-      'Content-Length': body.length,
-    });
-    res.send(body);
   }
 }
