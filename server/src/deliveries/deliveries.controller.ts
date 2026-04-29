@@ -1,9 +1,11 @@
 // Copyright 2025 Forklift. Apache-2.0 license.
 
-import { Controller, Post, Get, Param, Body, Logger } from '@nestjs/common';
+import { Controller, Post, Get, Param, Body, Res, Logger, NotFoundException } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
+import type { Response } from 'express';
 
 import { DeliveryService } from '@forklift/delivery';
+import { BlobStorageService } from '@forklift/delivery';
 import { VerifierRegistry } from '@forklift/verifiers';
 import { PrismaService } from '@forklift/database';
 import { hashData } from '@forklift/chain';
@@ -16,6 +18,7 @@ export class DeliveriesController {
 
   constructor(
     private readonly deliveryService: DeliveryService,
+    private readonly blobStorage: BlobStorageService,
     private readonly verifierRegistry: VerifierRegistry,
     private readonly prisma: PrismaService,
   ) {}
@@ -112,5 +115,25 @@ export class DeliveriesController {
     });
 
     return { delivery, signedUrl, verifierResult };
+  }
+
+  @Get(':bountyId/download')
+  async downloadFile(@Param('bountyId') bountyId: string, @Res() res: Response) {
+    const delivery = await this.deliveryService.getDelivery(bountyId);
+    if (!delivery) throw new NotFoundException('No delivery found');
+
+    const payload = delivery.payload as Record<string, unknown>;
+    const storageKey = payload['storageKey'] as string | undefined;
+    if (!storageKey) throw new NotFoundException('No file attached to this delivery');
+
+    const { body, contentType } = await this.blobStorage.getObject(storageKey);
+    const fileName = (payload['fileName'] as string) ?? 'delivery';
+
+    res.set({
+      'Content-Type': contentType,
+      'Content-Disposition': `attachment; filename="${fileName}"`,
+      'Content-Length': body.length,
+    });
+    res.send(body);
   }
 }

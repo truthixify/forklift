@@ -54,6 +54,21 @@ export class BlobStorageService {
     };
   }
 
+  async getObject(key: string): Promise<{ body: Buffer; contentType: string }> {
+    const result = await this.s3.send(
+      new GetObjectCommand({ Bucket: this.bucket, Key: key }),
+    );
+    const chunks: Uint8Array[] = [];
+    const stream = result.Body as AsyncIterable<Uint8Array>;
+    for await (const chunk of stream) {
+      chunks.push(chunk);
+    }
+    return {
+      body: Buffer.concat(chunks),
+      contentType: result.ContentType ?? 'application/octet-stream',
+    };
+  }
+
   async getSignedUrl(key: string, expiresInSeconds = 900): Promise<string> {
     const command = new GetObjectCommand({
       Bucket: this.bucket,

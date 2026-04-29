@@ -5,6 +5,7 @@ import { ManifestCard, IdTab, StatusBand, MonoLabel, Tag, PulseDot, Monogram, Br
 import { FlButton } from "@/components/manifest/FlButton";
 import { FlInput } from "@/components/manifest/FlInput";
 import { useBounty, useDelivery, useApproveBounty, useRejectBounty } from "@/lib/api";
+import { API_BASE } from "@/lib/config";
 import { useWalletAuth } from "@/components/auth/WalletAuth";
 
 export default function PosterBountyDetail() {
@@ -159,7 +160,8 @@ export default function PosterBountyDetail() {
               const isSvg = mimeType.includes('svg') || fileName.endsWith('.svg');
               const isImage = mimeType.startsWith('image/') || isSvg;
 
-              if (isFile && signedUrl) {
+              if (isFile && (signedUrl || payload?.storageKey)) {
+                const downloadUrl = `${API_BASE}/deliveries/${id}/download`;
                 return (
                   <div className="border border-ink p-4 space-y-4">
                     <div className="flex items-center justify-between">
@@ -167,26 +169,13 @@ export default function PosterBountyDetail() {
                         <MonoLabel ink className="block">{fileName}</MonoLabel>
                         <span className="mono-small text-muted-ink">{mimeType} · {payload?.sizeBytes ? `${((payload.sizeBytes as number) / 1024).toFixed(1)} KB` : ''}</span>
                       </div>
-                      <FlButton variant="cobalt" size="sm" onClick={async () => {
-                        const res = await fetch(signedUrl);
-                        const blob = await res.blob();
-                        const url = URL.createObjectURL(blob);
-                        const a = document.createElement('a');
-                        a.href = url;
-                        a.download = fileName;
-                        a.click();
-                        URL.revokeObjectURL(url);
-                      }}>Download</FlButton>
+                      <a href={downloadUrl} download={fileName}>
+                        <FlButton variant="cobalt" size="sm">Download</FlButton>
+                      </a>
                     </div>
                     {isImage && (
                       <div className="border border-ink bg-hairline/10 p-6 flex items-center justify-center min-h-[200px]">
-                        {isSvg ? (
-                          <object data={signedUrl} type="image/svg+xml" className="max-w-full max-h-[400px]">
-                            <img src={signedUrl} alt={fileName} className="max-w-full max-h-[400px]" />
-                          </object>
-                        ) : (
-                          <img src={signedUrl} alt={fileName} className="max-w-full max-h-[400px]" />
-                        )}
+                        <img src={downloadUrl} alt={fileName} className="max-w-full max-h-[400px]" />
                       </div>
                     )}
                     {payload?.designNotes && (
