@@ -10,7 +10,21 @@ import { useWalletAuth } from "@/components/auth/WalletAuth";
 import { BOUNTY_ESCROW_ADDRESS, KITE_USDT_ADDRESS, BOUNTY_ESCROW_ABI } from "@/lib/config";
 import { kiteTestnet } from "@/lib/wagmi";
 
-const SAMPLE_BRIEF = "Design a minimalist logo for my Shopify store, plant-based skincare brand 'Quiet Botanic'. Vector format, transparent SVG plus PNG at 1024×1024. No mascots, no script fonts. Should read at favicon size.";
+const SAMPLE_BRIEFS: Record<string, string> = {
+  'logo-design': "Design a minimalist logo for my Shopify store, plant-based skincare brand 'Quiet Botanic'. Vector format, transparent SVG plus PNG at 1024×1024. No mascots, no script fonts. Should read at favicon size.",
+  'social-graphic': "Create an Instagram post graphic for a SaaS product launch. Product name: 'FlowDesk'. Tagline: 'Your desk, automated.' Use blue/purple gradient background, clean sans-serif font, include a laptop mockup placeholder. 1080×1080.",
+  'infographic': "Design an infographic showing '5 Steps to Ship Your First AI Agent'. Target audience: developers new to AI. Include numbered steps, small icons for each step, and a clean modern layout. Vertical format.",
+  'lead-gen': "Find 15 fintech startup founders in the US who raised Series A in 2024-2025. I need their full name, title, company name, company website, LinkedIn URL, and what their startup does. Focus on payments and lending verticals.",
+  'data-extraction': "Extract all YC W25 batch companies from the Y Combinator website. For each company I need: name, one-line description, vertical/category, and founding year. Target 50+ records.",
+  'dataset-labeling': "Label the following customer support tickets as 'billing', 'technical', 'feature-request', or 'other'. Each ticket is a one-sentence summary. Provide confidence score for each label.",
+  'research-brief': "Write a research brief on the current state of AI agent infrastructure in 2025. Cover: key players, funding trends, technical architecture patterns, and market size estimates. Include at least 5 cited sources.",
+  'blog-post': "Write a blog post titled 'Why Autonomous AI Agents Will Replace SaaS Subscriptions'. Target audience: startup founders. Tone: conversational but data-driven. Include at least 3 real examples of agent-native companies. 1000-1500 words.",
+  'copywriting': "Write landing page copy for 'Forklift' — a marketplace where AI agents do your work. Headline, subheadline, 3 feature sections, social proof section, and a CTA. Tone: bold, confident, slightly irreverent.",
+  'transcription': "Transcribe this 10-minute podcast episode about blockchain scalability. Include speaker labels (Host vs Guest), timestamps every 30 seconds, and clean up filler words.",
+  'voice-over': "Write a 60-second voice-over script for a product demo video of 'Forklift'. Tone: professional but energetic. Cover what it does, how it works, and end with a CTA to sign up.",
+};
+
+const DEFAULT_BRIEF = SAMPLE_BRIEFS['logo-design'];
 
 const FALLBACK_TRACE = [
   "TOKENIZE BRIEF",
@@ -57,7 +71,7 @@ interface Props {
 export function PostBountyForm({ dashboardHref = "/dashboard/poster" }: Props) {
   const [stage, setStage] = useState<Stage>(1);
   const [template, setTemplate] = useState<string | null>(null);
-  const [brief, setBrief] = useState(SAMPLE_BRIEF);
+  const [brief, setBrief] = useState(DEFAULT_BRIEF);
   const [amount, setAmount] = useState("25");
   const [traceLine, setTraceLine] = useState(0);
   const [draft, setDraft] = useState<DraftResult | null>(null);
@@ -237,7 +251,15 @@ export function PostBountyForm({ dashboardHref = "/dashboard/poster" }: Props) {
                     <button
                       type="button"
                       key={t.id}
-                      onClick={() => setTemplate(isOn ? null : t.id)}
+                      onClick={() => {
+                        if (isOn) {
+                          setTemplate(null);
+                        } else {
+                          setTemplate(t.id);
+                          const sample = SAMPLE_BRIEFS[t.id];
+                          if (sample) setBrief(sample);
+                        }
+                      }}
                       aria-pressed={isOn}
                       className={`border-2 px-3 h-8 mono-small inline-flex items-center transition-colors ${isOn ? "border-ink bg-ink text-paper" : "border-ink bg-paper hover:bg-hairline/40"}`}
                     >
