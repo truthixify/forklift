@@ -172,6 +172,20 @@ export class SettlementController {
         },
       });
 
+      const disputeEvHash = hashData(JSON.stringify({ bountyId, action: 'dispute', at: Date.now() }));
+      await this.prisma.indexedEvent.upsert({
+        where: { transactionHash_logIndex: { transactionHash: disputeEvHash, logIndex: 0 } },
+        update: {},
+        create: {
+          eventName: 'BountyDisputed',
+          bountyId,
+          blockNumber: 0n,
+          transactionHash: disputeEvHash,
+          logIndex: 0,
+          data: { posterAddress: body.posterAddress, reason: body.reason } as Prisma.InputJsonValue,
+        },
+      });
+
       this.logger.log(`Dispute opened for ${bountyId.slice(0, 14)}…: broker passed, poster rejected`);
       return { settled: false, action: 'dispute-opened', disputeReason: body.reason };
     } catch (error) {

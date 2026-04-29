@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 import { DashboardLayout } from "@/components/shell/DashboardLayout";
 import { ManifestCard, IdTab, StatusBand, MonoLabel, Tag, PulseDot, Monogram, Brackets } from "@/components/manifest/Manifest";
 import { FlButton } from "@/components/manifest/FlButton";
+import { FlInput } from "@/components/manifest/FlInput";
 import { useBounty, useApproveBounty, useRejectBounty } from "@/lib/api";
 import { useWalletAuth } from "@/components/auth/WalletAuth";
 
@@ -14,6 +15,7 @@ export default function PosterBountyDetail() {
   const rejectMutation = useRejectBounty();
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [rejectReason, setRejectReason] = useState("");
 
   const raw = bountyData as Record<string, unknown> | undefined;
   const sig = raw?.signature as Record<string, unknown> | undefined;
@@ -28,6 +30,7 @@ export default function PosterBountyDetail() {
     const stateMap: Record<string, string> = {
       BountyCreated: "live", BountyAssigned: "assigned", DeliverySubmitted: "delivered",
       BountyPaid: "paid", BountyRefunded: "refunded", BountyExpired: "expired",
+      BountyDisputed: "disputed",
     };
     const last = events[events.length - 1];
     return stateMap[(last?.eventName as string) ?? ""] ?? "live";
@@ -175,7 +178,7 @@ export default function PosterBountyDetail() {
               </div>
             )}
             {state === "delivered" && address && !successMsg && (
-              <div className="flex gap-3 pt-2">
+              <div className="space-y-4 pt-2">
                 <FlButton
                   variant="cobalt"
                   onClick={() => {
@@ -189,32 +192,47 @@ export default function PosterBountyDetail() {
                 >
                   {approveMutation.isPending ? "Approving..." : "Approve"}
                 </FlButton>
-                <FlButton
-                  variant="secondary"
-                  onClick={() => {
-                    setErrorMsg(null);
-                    rejectMutation.mutate(
-                      { bountyId: id!, posterAddress: address, reason: "Quality below expectations" },
-                      { onSuccess: () => setSuccessMsg("DELIVERY REJECTED"), onError: (e) => setErrorMsg(e.message) },
-                    );
-                  }}
-                  disabled={approveMutation.isPending || rejectMutation.isPending}
-                >
-                  {rejectMutation.isPending ? "Rejecting..." : "Reject"}
-                </FlButton>
-                <FlButton
-                  variant="destructive"
-                  onClick={() => {
-                    setErrorMsg(null);
-                    rejectMutation.mutate(
-                      { bountyId: id!, posterAddress: address, reason: "Disputing delivery quality" },
-                      { onSuccess: () => setSuccessMsg("DISPUTE OPENED"), onError: (e) => setErrorMsg(e.message) },
-                    );
-                  }}
-                  disabled={approveMutation.isPending || rejectMutation.isPending}
-                >
-                  Dispute
-                </FlButton>
+                <div className="border border-ink p-4 space-y-3">
+                  <MonoLabel ink>NOT SATISFIED?</MonoLabel>
+                  <FlInput
+                    label="REASON"
+                    value={rejectReason}
+                    onChange={(e) => setRejectReason(e.target.value)}
+                    placeholder="Describe the issue..."
+                  />
+                  <div className="flex gap-3">
+                    <FlButton
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => {
+                        if (!rejectReason.trim()) { setErrorMsg("Please provide a reason"); return; }
+                        setErrorMsg(null);
+                        rejectMutation.mutate(
+                          { bountyId: id!, posterAddress: address, reason: rejectReason },
+                          { onSuccess: () => setSuccessMsg("DELIVERY REJECTED"), onError: (e) => setErrorMsg(e.message) },
+                        );
+                      }}
+                      disabled={approveMutation.isPending || rejectMutation.isPending}
+                    >
+                      {rejectMutation.isPending ? "..." : "Reject"}
+                    </FlButton>
+                    <FlButton
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => {
+                        if (!rejectReason.trim()) { setErrorMsg("Please provide a reason for dispute"); return; }
+                        setErrorMsg(null);
+                        rejectMutation.mutate(
+                          { bountyId: id!, posterAddress: address, reason: rejectReason },
+                          { onSuccess: () => setSuccessMsg("DISPUTE OPENED — PLATFORM WILL REVIEW"), onError: (e) => setErrorMsg(e.message) },
+                        );
+                      }}
+                      disabled={approveMutation.isPending || rejectMutation.isPending}
+                    >
+                      Open dispute
+                    </FlButton>
+                  </div>
+                </div>
               </div>
             )}
             {state === "paid" && (
@@ -225,6 +243,11 @@ export default function PosterBountyDetail() {
             {state === "refunded" && (
               <div className="bg-hairline text-ink border border-ink px-4 py-3 mt-2">
                 <MonoLabel>BOUNTY REFUNDED</MonoLabel>
+              </div>
+            )}
+            {state === "disputed" && (
+              <div className="bg-hivis text-ink border border-ink px-4 py-3 mt-2">
+                <MonoLabel>DISPUTE OPEN — AWAITING PLATFORM REVIEW</MonoLabel>
               </div>
             )}
           </div>
