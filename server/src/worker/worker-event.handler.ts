@@ -12,6 +12,7 @@ import { hashData } from '@forklift/chain';
 import { NotificationService } from '@forklift/notifications';
 import { VerifierRegistry } from '@forklift/verifiers';
 import { ClaimService } from './claim.service';
+import { AgentChainService } from './agent-chain.service';
 import { dispatchWork } from './handlers/dispatch';
 import type { WorkerProfile } from './worker-profile';
 
@@ -22,6 +23,7 @@ export class WorkerEventHandler implements OnModuleInit {
 
   constructor(
     private readonly claimService: ClaimService,
+    private readonly agentChain: AgentChainService,
     private readonly prisma: PrismaService,
     private readonly subgraph: SubgraphClient,
     private readonly llmFactory: LLMProviderFactory,
@@ -226,8 +228,9 @@ export class WorkerEventHandler implements OnModuleInit {
 
       if (this.claimService.shouldClaim(profile, bountyInfo)) {
         try {
-          await this.claimService.generateProposal(profile, bountyInfo);
+          const proposal = await this.claimService.generateProposal(profile, bountyInfo);
           this.logger.log(`${profile.displayName} claimed ${bountyId}`);
+          await this.agentChain.submitClaimOnChain(profile.passportAddress, bountyId, proposal.proposalHash);
         } catch (error) {
           this.logger.error(`${profile.displayName} failed to claim ${bountyId}`, error);
         }
@@ -265,8 +268,9 @@ export class WorkerEventHandler implements OnModuleInit {
       if (this.claimService.shouldClaim(profile, bountyInfo)) {
         this.logger.log(`${profile.displayName} claiming bounty ${event.bountyId}`);
         try {
-          await this.claimService.generateProposal(profile, bountyInfo);
+          const proposal = await this.claimService.generateProposal(profile, bountyInfo);
           claimCount++;
+          await this.agentChain.submitClaimOnChain(profile.passportAddress, event.bountyId, proposal.proposalHash);
         } catch (error) {
           this.logger.error(`${profile.displayName} failed to claim ${event.bountyId}`, error);
         }
@@ -310,6 +314,9 @@ export class WorkerEventHandler implements OnModuleInit {
       });
 
       this.logger.log(`Delivery stored: ${bountyId.slice(0, 14)}… → ${delivery.hash.slice(0, 14)}…`);
+
+      // Submit delivery on-chain from agent's AA wallet (gasless)
+      await this.agentChain.submitDeliveryOnChain(agentAddress, bountyId, delivery.hash);
 
       // Write DeliverySubmitted event so bounty state advances to "delivered"
       await this.prisma.indexedEvent.upsert({
