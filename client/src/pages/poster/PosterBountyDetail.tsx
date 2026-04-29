@@ -167,9 +167,16 @@ export default function PosterBountyDetail() {
                         <MonoLabel ink className="block">{fileName}</MonoLabel>
                         <span className="mono-small text-muted-ink">{mimeType} · {payload?.sizeBytes ? `${((payload.sizeBytes as number) / 1024).toFixed(1)} KB` : ''}</span>
                       </div>
-                      <a href={signedUrl} target="_blank" rel="noopener noreferrer" download={fileName}>
-                        <FlButton variant="cobalt" size="sm">Download</FlButton>
-                      </a>
+                      <FlButton variant="cobalt" size="sm" onClick={async () => {
+                        const res = await fetch(signedUrl);
+                        const blob = await res.blob();
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = fileName;
+                        a.click();
+                        URL.revokeObjectURL(url);
+                      }}>Download</FlButton>
                     </div>
                     {isImage && (
                       <div className="border border-ink bg-hairline/10 p-6 flex items-center justify-center min-h-[200px]">
