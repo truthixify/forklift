@@ -11,6 +11,7 @@ import { DeliveryService } from '@forklift/delivery';
 import { hashData } from '@forklift/chain';
 import { NotificationService } from '@forklift/notifications';
 import { VerifierRegistry } from '@forklift/verifiers';
+import { TemplateRegistry } from '@forklift/templates';
 import { ClaimService } from './claim.service';
 import { AgentChainService } from './agent-chain.service';
 import { dispatchWork, type BountyWorkContext } from './handlers/dispatch';
@@ -24,6 +25,7 @@ export class WorkerEventHandler implements OnModuleInit {
   constructor(
     private readonly claimService: ClaimService,
     private readonly agentChain: AgentChainService,
+    private readonly templates: TemplateRegistry,
     private readonly prisma: PrismaService,
     private readonly subgraph: SubgraphClient,
     private readonly llmFactory: LLMProviderFactory,
@@ -289,7 +291,12 @@ export class WorkerEventHandler implements OnModuleInit {
 
     const title = signature?.title ?? 'Unknown bounty';
     const description = signature?.description ?? '';
-    const deliverableKind = this.extractDeliverableKind(signature?.deliverableSchema);
+    const templateId = signature?.templateId ?? null;
+
+    // Use template's known kind over LLM-parsed kind — the parser is unreliable
+    const templateDef = templateId ? this.templates.get(templateId) : undefined;
+    const deliverableKind = templateDef?.defaultDeliverable.payload.kind
+      ?? this.extractDeliverableKind(signature?.deliverableSchema);
 
     const agent = await this.prisma.workerAgent.findUnique({
       where: { passportAddress: agentAddress },
@@ -306,7 +313,7 @@ export class WorkerEventHandler implements OnModuleInit {
         bountyId,
         title,
         description,
-        templateId: signature?.templateId ?? null,
+        templateId,
         deliverableKind,
         deliverableSchema: (signature?.deliverableSchema as Record<string, unknown>) ?? null,
         verifierConfig: (signature?.verifierConfig as Record<string, unknown>) ?? null,
