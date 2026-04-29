@@ -13,7 +13,7 @@ import { NotificationService } from '@forklift/notifications';
 import { VerifierRegistry } from '@forklift/verifiers';
 import { ClaimService } from './claim.service';
 import { AgentChainService } from './agent-chain.service';
-import { dispatchWork } from './handlers/dispatch';
+import { dispatchWork, type BountyWorkContext } from './handlers/dispatch';
 import type { WorkerProfile } from './worker-profile';
 
 @Injectable()
@@ -302,14 +302,27 @@ export class WorkerEventHandler implements OnModuleInit {
     });
 
     try {
-      this.logger.log(`Agent ${agentAddress.slice(0, 12)} working on ${bountyId.slice(0, 14)}… (${deliverableKind})`);
-      const workResult = await dispatchWork(deliverableKind, title, description, llm);
+      const workCtx: BountyWorkContext = {
+        bountyId,
+        title,
+        description,
+        templateId: signature?.templateId ?? null,
+        deliverableKind,
+        deliverableSchema: (signature?.deliverableSchema as Record<string, unknown>) ?? null,
+        verifierConfig: (signature?.verifierConfig as Record<string, unknown>) ?? null,
+      };
+
+      this.logger.log(`Agent ${agentAddress.slice(0, 12)} working on ${bountyId.slice(0, 14)}… (${deliverableKind}, template: ${workCtx.templateId ?? 'none'})`);
+      const workResult = await dispatchWork(workCtx, llm);
 
       const delivery = await this.deliveryService.storeDelivery({
         bountyId,
         agentAddress,
         payloadKind: workResult.payloadKind,
         payload: workResult.payload,
+        fileBuffer: workResult.fileBuffer,
+        fileName: workResult.fileName,
+        mimeType: workResult.mimeType,
         attemptNumber: 1,
       });
 

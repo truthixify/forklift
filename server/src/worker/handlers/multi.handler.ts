@@ -2,13 +2,9 @@
 
 import { Logger } from '@nestjs/common';
 import type { LLMClient } from '@forklift/llm';
+import type { WorkResult } from './work-result';
 
 const logger = new Logger('WorkHandler:multi');
-
-export interface WorkResult {
-  payloadKind: string;
-  payload: Record<string, unknown>;
-}
 
 export async function handlemultiWork(
   bountyTitle: string,
@@ -18,7 +14,12 @@ export async function handlemultiWork(
   logger.log('Generating multi delivery for: ' + bountyTitle.slice(0, 60));
 
   const content = await llm.generateText({
-    prompt: 'You are an AI agent. Generate a multi deliverable for this bounty.\n\nTitle: ' + bountyTitle + '\nDescription: ' + bountyDescription + '\n\nReturn the result.',
+    prompt: `You are an AI agent completing a multi-part deliverable.
+
+BOUNTY: ${bountyTitle}
+BRIEF: ${bountyDescription}
+
+Produce all required parts. Structure each part clearly with headers and content.`,
     timeout: 120_000,
   });
 
