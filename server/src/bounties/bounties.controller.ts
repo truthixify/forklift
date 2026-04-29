@@ -127,9 +127,20 @@ export class BountiesController {
         const latestEvent = allEvents[0];
         const stateMap: Record<string, string> = {
           BountyCreated: 'live', BountyAssigned: 'assigned', DeliverySubmitted: 'delivered',
-          BountyPaid: 'paid', BountyRefunded: 'refunded', BountyExpired: 'expired', BountyCancelled: 'cancelled',
+          BountyPaid: 'paid', BountyRefunded: 'refunded', BountyExpired: 'expired',
+          BountyCancelled: 'cancelled', BountyDisputed: 'disputed',
         };
-        const state = stateMap[latestEvent?.eventName ?? ''] ?? 'live';
+        let state = stateMap[latestEvent?.eventName ?? ''] ?? 'live';
+
+        // Enrich state from DB if indexed events are behind
+        if (state === 'live' && claims > 0) {
+          const hasAssignment = allEvents.some((e) => e.eventName === 'BountyAssigned');
+          if (hasAssignment) state = 'assigned';
+        }
+        if (state === 'assigned') {
+          const hasDelivery = await this.prisma.delivery.findFirst({ where: { bountyId } });
+          if (hasDelivery) state = 'delivered';
+        }
 
         const assignedEvent = allEvents.find((e) => e.eventName === 'BountyAssigned');
         const assignedData = assignedEvent?.data as Record<string, unknown> | undefined;

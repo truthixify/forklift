@@ -8,6 +8,7 @@ import { PrismaService } from '@forklift/database';
 import { NotificationService } from '@forklift/notifications';
 import {
   createBrokerWalletClient,
+  createKitePublicClient,
   signRelease,
   signRefund,
   hashData,
@@ -71,6 +72,26 @@ export class SettlementService implements OnModuleInit {
 
     if (!brokerKey || !escrowAddress) {
       this.logger.warn('Missing broker key or escrow address; skipping on-chain release');
+      return null;
+    }
+
+    // Check on-chain status before attempting release
+    const publicClient = createKitePublicClient();
+    const onChain = await publicClient.readContract({
+      address: escrowAddress as `0x${string}`,
+      abi: BOUNTY_ESCROW_ABI,
+      functionName: 'bounties',
+      args: [bountyId as `0x${string}`],
+    });
+    const fields = onChain as unknown as readonly unknown[];
+    const onChainStatus = Number(fields[6] ?? 0);
+    // 0=Open, 1=Assigned, 2=Delivered, 3=Paid, 4=Refunded, 5=Cancelled
+    if (onChainStatus === 3 || onChainStatus === 4) {
+      this.logger.warn(`Bounty ${bountyId.slice(0, 14)}… already settled on-chain (status ${onChainStatus})`);
+      return null;
+    }
+    if (onChainStatus !== 2) {
+      this.logger.warn(`Bounty ${bountyId.slice(0, 14)}… not in delivered state on-chain (status ${onChainStatus}), skipping release`);
       return null;
     }
 
